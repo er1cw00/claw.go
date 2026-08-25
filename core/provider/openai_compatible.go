@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -168,6 +169,12 @@ func castToMap(v any) map[string]any {
 	}
 	if m, ok := v.(map[string]any); ok {
 		return m
+	}
+	if raw, ok := v.(json.RawMessage); ok && len(raw) > 0 {
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err == nil {
+			return m
+		}
 	}
 	return nil
 }

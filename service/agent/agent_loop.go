@@ -45,14 +45,14 @@ func (agent *Agent) Start() error {
 	}
 	agent.llm = llm
 
-	tools := []tools.Tool{
+	toolList := []tools.Tool{
 		tools.NewBashTool(),
 	}
 
-	toolSpecs := make([]*provider.ToolFunction, len(tools))
+	toolSpecs := make([]*provider.ToolFunction, len(toolList))
 	toolMap := make(map[string]tools.Tool, 0)
 
-	for i, tool := range tools {
+	for i, tool := range toolList {
 		spec := tool.Spec()
 		toolSpecs[i] = &provider.ToolFunction{
 			Name:        spec.Name,
@@ -97,6 +97,25 @@ func (agent *Agent) Stop() {
 	agent.running.Store(false)
 }
 
+func (agent *Agent) executeToolCall(ctx context.Context, tc provider.ToolCall) string {
+	tool, ok := agent.tools[tc.Function.Name]
+	if !ok {
+		return fmt.Sprintf("tool %q not found", tc.Function.Name)
+	}
+	var args map[string]interface{}
+	if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
+		logger.Errorf("[Agent] parse args fail, err: %v", err)
+		return fmt.Sprintf("failed to parse arguments: %v", err)
+	}
+	content, err := tool.Execute(ctx, args)
+	if err != nil {
+		logger.Errorf("[Agent] execute tool %q fail, err: %v", tc.Function.Name, err)
+		return fmt.Sprintf("error: %v", err)
+	}
+	logger.Debugf("[Agent] Tool(%s) result: %s", tc.Function.Name, content)
+	return content
+}
+
 func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage model.InboundMessage) error {
 	var (
 		err          error                        = nil
@@ -123,21 +142,27 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 			logger.Debugf("[Agent] llm complete stop")
 			break
 		}
-		var results []provider.ToolCall
-		if len(resp.ToolCalls) > 0 {
-			for _, tc := range resp.ToolCalls {
-				if tool, ok := agent.tools[tc.Function.Name]; ok {
-					var args map[string]interface{}
-					var content string = ""
-					if err = json.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
-						logger.Errorf("[Agent] unmarshal toolcall args fail, err: %v", err)
-						content = err.Error()
-					} else {
-						content, err = tool.Execute(ctx, args)
-					}
-					logger.Debugf("[Agent] Tool(%s) content: %s", tc.Function.Name, content)
-				}
-			}
+		if len(resp.ToolCalls) == 0 {
+			logger.Debugf("[Agent] no tool calls, stop")
+			break
+		}
+
+		// Append assistant message that requested the tool calls.
+		messages = append(messages, provider.Message{
+			Role:      provider.RoleAssistant,
+			Content:   resp.Content,
+			ToolCalls: resp.ToolCalls,
+		})
+
+		// Execute each tool call and append the result as a tool message.
+		for _, tc := range resp.ToolCalls {
+			toolResult := agent.executeToolCall(ctx, tc)
+			messages = append(messages, provider.Message{
+				Role:       provider.RoleTool,
+				Content:    toolResult,
+				ToolCallID: tc.ID,
+				Name:       tc.Function.Name,
+			})
 		}
 	}
 
