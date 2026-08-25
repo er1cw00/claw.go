@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"strings"
 )
 
 type BashTool struct {
@@ -56,12 +55,7 @@ func (t *BashTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	if !ok {
 		return "command is required", errors.New("command parameter is missing or invalid")
 	}
-	parts := strings.Fields(command)
-	if len(parts) == 0 {
-		return "empty command", errors.New("command is empty")
-	}
-
-	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
+	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", command)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
