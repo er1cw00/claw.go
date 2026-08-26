@@ -7,10 +7,22 @@ import (
 	"github.com/er1cw00/claw.go/core/provider"
 )
 
-var _tools map[string]Tool
-var _specs []*provider.ToolFunction
+type Service struct {
+	tools map[string]Tool
+	specs []*provider.ToolFunction
+}
 
-func Init() {
+var tcService *Service = &Service{
+	tools: make(map[string]Tool, 0),
+	specs: make([]*provider.ToolFunction, 0),
+}
+
+func GetService() *Service {
+	return tcService
+}
+
+func (s *Service) Start() error {
+
 	list := []Tool{
 		NewBashTool(),
 	}
@@ -27,27 +39,28 @@ func Init() {
 		}
 		toolMap[tool.Name()] = tool
 	}
-	_specs = toolSpecs
-	_tools = toolMap
+	s.specs = toolSpecs
+	s.tools = toolMap
+	return nil
 }
 
-func GetTool(name string) (Tool, bool) {
-	tool, ok := _tools[name]
+func (s *Service) GetTool(name string) (Tool, bool) {
+	tool, ok := s.tools[name]
 	return tool, ok
 }
 
-func GetToolSpecs() []*provider.ToolFunction {
-	return _specs
+func (s *Service) GetToolSpecs() []*provider.ToolFunction {
+	return s.specs
 }
 
-func ExecuteToolCall(ctx context.Context, name, arguments string) (string, error) {
+func (s *Service) ExecuteToolCall(ctx context.Context, name, arguments string) (string, error) {
 	var (
 		err  error = nil
 		ok   bool  = false
 		tool Tool  = nil
 		args map[string]interface{}
 	)
-	tool, ok = _tools[name]
+	tool, ok = s.tools[name]
 	if !ok {
 		return fmt.Sprintf("tool %q not found", name), err
 	}

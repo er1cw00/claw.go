@@ -10,10 +10,10 @@ import (
 	"github.com/er1cw00/claw.go/base"
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
-	"github.com/er1cw00/claw.go/core/tools"
 	"github.com/er1cw00/claw.go/model"
 	bus "github.com/er1cw00/claw.go/service/bus"
 	ss "github.com/er1cw00/claw.go/service/session"
+	"github.com/er1cw00/claw.go/service/tools"
 )
 
 type Agent struct {
@@ -126,7 +126,7 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 
 		// Execute each tool call and append the result as a tool message.
 		for _, tc := range resp.ToolCalls {
-			toolResult, err := tools.ExecuteToolCall(ctx, tc.Function.Name, tc.Function.Arguments)
+			toolResult, err := tools.GetService().ExecuteToolCall(ctx, tc.Function.Name, tc.Function.Arguments)
 			if err != nil {
 				logger.Warnf("[Agent] execute tool(%s) fail, err: %v", tc.Function.Name, err)
 			}
@@ -149,7 +149,7 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 }
 
 func (agent *Agent) buildRequest(messages []provider.Message) *provider.CompletionRequest {
-	specs := tools.GetToolSpecs()
+	specs := tools.GetService().GetToolSpecs()
 	tools := make([]provider.Tool, 0)
 	for _, toolSpec := range specs {
 		tool := provider.Tool{
