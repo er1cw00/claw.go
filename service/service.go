@@ -7,6 +7,7 @@ import (
 	cc "github.com/er1cw00/claw.go/service/cache"
 	ch "github.com/er1cw00/claw.go/service/channel"
 	ss "github.com/er1cw00/claw.go/service/session"
+	tools "github.com/er1cw00/claw.go/service/tools"
 )
 
 func Start() error {
@@ -24,6 +25,10 @@ func Start() error {
 		logger.Errorf("❌ Channels Service Start fail, err: %v", err)
 		return err
 	}
+	if err = tools.GetService().Start(); err != nil {
+		logger.Errorf("❌ Tools Service Start fail, err: %v", err)
+		return err
+	}
 	if err = ss.GetService().Start(); err != nil {
 		logger.Errorf("❌ Session Service Start fail, err: %v", err)
 		return err
@@ -36,9 +41,9 @@ func Start() error {
 }
 
 func Stop() {
-
+	agent.GetService().Stop()
 	ch.GetService().Stop()
 	bus.GetService().Stop()
 	cc.GetService().Stop()
-	agent.GetService().Stop()
+
 }
