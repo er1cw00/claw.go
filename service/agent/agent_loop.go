@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -97,10 +98,21 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 
 	messages := []provider.Message{
 		{Role: provider.RoleSystem, Content: SYSTEM_PROMPT},
-		{Role: provider.RoleUser, Content: inboundMessage.Content},
 	}
+	messages = append(messages, session.GetHistory(40)...)
+	messages = append(messages, provider.Message{
+		Role:    provider.RoleUser,
+		Content: inboundMessage.Content,
+	})
+
+	// Append user message to session history.
+	_ = session.AddMessage(provider.Message{
+		Role:    provider.RoleUser,
+		Content: inboundMessage.Content,
+	})
 
 	for iteration := 0; iteration < MaxIteration; iteration++ {
+
 		req = agent.buildRequest(messages)
 		if resp, err = agent.llm.Complete(ctx, req); err != nil {
 			logger.Errorf("[Agent] llm complete fail; err: %v", err)
@@ -108,6 +120,15 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 		}
 		logger.Debugf("resp: %v", resp)
 		logger.Debugf("Finish Reason: %s; toolcall: %d", resp.FinishReason, len(resp.ToolCalls))
+
+		assistantMsg := provider.Message{
+			Role:      provider.RoleAssistant,
+			Content:   resp.Content,
+			ToolCalls: resp.ToolCalls,
+		}
+		_ = session.AddMessage(assistantMsg)
+		messages = append(messages, assistantMsg)
+
 		if resp.FinishReason == "stop" {
 			logger.Debugf("[Agent] llm complete stop")
 			break
@@ -117,25 +138,20 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 			break
 		}
 
-		// Append assistant message that requested the tool calls.
-		messages = append(messages, provider.Message{
-			Role:      provider.RoleAssistant,
-			Content:   resp.Content,
-			ToolCalls: resp.ToolCalls,
-		})
-
 		// Execute each tool call and append the result as a tool message.
 		for _, tc := range resp.ToolCalls {
 			toolResult, err := tools.GetService().ExecuteToolCall(ctx, tc.Function.Name, tc.Function.Arguments)
 			if err != nil {
 				logger.Warnf("[Agent] execute tool(%s) fail, err: %v", tc.Function.Name, err)
 			}
-			messages = append(messages, provider.Message{
+			toolMsg := provider.Message{
 				Role:       provider.RoleTool,
 				Content:    toolResult,
 				ToolCallID: tc.ID,
 				Name:       tc.Function.Name,
-			})
+			}
+			_ = session.AddMessage(toolMsg)
+			messages = append(messages, toolMsg)
 		}
 	}
 
@@ -145,6 +161,10 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 		Content: resp.Content,
 	}
 	msgBus.PublishOutbound(outboundMessage)
+
+	if err := ss.GetService().SaveSession(session); err != nil {
+		logger.Warnf("[Agent] save session fail; err: %v", err)
+	}
 	return nil
 }
 
@@ -157,6 +177,15 @@ func (agent *Agent) buildRequest(messages []provider.Message) *provider.Completi
 			Function: *toolSpec,
 		}
 		tools = append(tools, tool)
+	}
+
+	for i, msg := range messages {
+		str, _ := json.Marshal(msg)
+		logger.Debugf("msg(%d): %s", i, string(str))
+	}
+	for i, tool := range tools {
+		str, _ := json.Marshal(tool)
+		logger.Debugf("tool(%d): %s", i, string(str))
 	}
 	return &provider.CompletionRequest{
 		Model:       agent.config.Model,
