@@ -17,6 +17,7 @@ type ProviderConfig struct {
 }
 
 type AgentConfig struct {
+	Name              string  `yaml:"name"`
 	Workspace         string  `yaml:"workspace"`
 	Provider          string  `yaml:"provider"`
 	Model             string  `yaml:"model"`

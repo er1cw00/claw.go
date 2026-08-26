@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -14,19 +13,23 @@ import (
 	"github.com/er1cw00/claw.go/core/tools"
 	"github.com/er1cw00/claw.go/model"
 	bus "github.com/er1cw00/claw.go/service/bus"
+	ss "github.com/er1cw00/claw.go/service/session"
 )
 
 type Agent struct {
-	llm       provider.LLMProvider
-	running   atomic.Bool
-	config    *base.AgentConfig
-	tools     map[string]tools.Tool
-	toolSpecs []*provider.ToolFunction
+	llm        provider.LLMProvider
+	running    atomic.Bool
+	config     *base.AgentConfig
+	sessionKey string
+	name       string
 }
 
 func NewAgent() *Agent {
+	cfg := &base.GetSettings().Agent
 	agent := &Agent{
-		config: &base.GetSettings().Agent,
+		llm:    nil,
+		config: cfg,
+		name:   cfg.Name,
 	}
 	return agent
 }
@@ -45,24 +48,6 @@ func (agent *Agent) Start() error {
 	}
 	agent.llm = llm
 
-	toolList := []tools.Tool{
-		tools.NewBashTool(),
-	}
-
-	toolSpecs := make([]*provider.ToolFunction, len(toolList))
-	toolMap := make(map[string]tools.Tool, 0)
-
-	for i, tool := range toolList {
-		spec := tool.Spec()
-		toolSpecs[i] = &provider.ToolFunction{
-			Name:        spec.Name,
-			Description: spec.Description,
-			Parameters:  spec.Parameters,
-		}
-		toolMap[tool.Name()] = tool
-	}
-	agent.toolSpecs = toolSpecs
-	agent.tools = toolMap
 	return nil
 }
 
@@ -97,25 +82,6 @@ func (agent *Agent) Stop() {
 	agent.running.Store(false)
 }
 
-func (agent *Agent) executeToolCall(ctx context.Context, tc provider.ToolCall) string {
-	tool, ok := agent.tools[tc.Function.Name]
-	if !ok {
-		return fmt.Sprintf("tool %q not found", tc.Function.Name)
-	}
-	var args map[string]interface{}
-	if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
-		logger.Errorf("[Agent] parse args fail, err: %v", err)
-		return fmt.Sprintf("failed to parse arguments: %v", err)
-	}
-	content, err := tool.Execute(ctx, args)
-	if err != nil {
-		logger.Errorf("[Agent] execute tool %q fail, err: %v", tc.Function.Name, err)
-		return fmt.Sprintf("error: %v", err)
-	}
-	logger.Debugf("[Agent] Tool(%s) result: %s", tc.Function.Name, content)
-	return content
-}
-
 func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage model.InboundMessage) error {
 	var (
 		err          error                        = nil
@@ -125,6 +91,10 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 		msgBus                                    = bus.GetService().GetMessageBus()
 	)
 	logger.Infof("[Agent] process in msg [%s-%s]", inboundMessage.Channel, inboundMessage.ChatID)
+
+	skey := ss.SessionKey(agent.name, inboundMessage.Channel, inboundMessage.ChatID)
+	session := ss.GetService().LoadSession(skey)
+
 	messages := []provider.Message{
 		{Role: provider.RoleSystem, Content: SYSTEM_PROMPT},
 		{Role: provider.RoleUser, Content: inboundMessage.Content},
@@ -156,7 +126,10 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 
 		// Execute each tool call and append the result as a tool message.
 		for _, tc := range resp.ToolCalls {
-			toolResult := agent.executeToolCall(ctx, tc)
+			toolResult, err := tools.ExecuteToolCall(ctx, tc.Function.Name, tc.Function.Arguments)
+			if err != nil {
+				logger.Warnf("[Agent] execute tool(%s) fail, err: %v", tc.Function.Name, err)
+			}
 			messages = append(messages, provider.Message{
 				Role:       provider.RoleTool,
 				Content:    toolResult,
@@ -176,9 +149,9 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 }
 
 func (agent *Agent) buildRequest(messages []provider.Message) *provider.CompletionRequest {
-
+	specs := tools.GetToolSpecs()
 	tools := make([]provider.Tool, 0)
-	for _, toolSpec := range agent.toolSpecs {
+	for _, toolSpec := range specs {
 		tool := provider.Tool{
 			Type:     "function",
 			Function: *toolSpec,

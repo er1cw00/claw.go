@@ -15,7 +15,7 @@ import (
 	"github.com/er1cw00/claw.go/service/channel/wechat"
 )
 
-type ChannelService struct {
+type Service struct {
 	mu       sync.RWMutex
 	wg       sync.WaitGroup
 	context  context.Context
@@ -23,15 +23,15 @@ type ChannelService struct {
 	channels map[string]ch.Channel
 }
 
-var chService *ChannelService = &ChannelService{
+var chService *Service = &Service{
 	channels: make(map[string]ch.Channel),
 }
 
-func GetService() *ChannelService {
+func GetService() *Service {
 	return chService
 }
 
-func (s *ChannelService) Start() error {
+func (s *Service) Start() error {
 	var (
 		err error      = nil
 		cc  ch.Channel = nil
@@ -66,7 +66,7 @@ func (s *ChannelService) Start() error {
 	return err
 }
 
-func (s *ChannelService) Stop() {
+func (s *Service) Stop() {
 
 	s.stop()
 	for _, c := range s.channels {
@@ -75,7 +75,7 @@ func (s *ChannelService) Stop() {
 	s.wg.Wait()
 }
 
-func (s *ChannelService) dispatch(ctx context.Context, wg *sync.WaitGroup) {
+func (s *Service) dispatch(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	msgBus := bus.GetService().GetMessageBus()
 	for {
