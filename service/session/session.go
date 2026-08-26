@@ -123,7 +123,7 @@ func (ss *Service) NewSession(key string) *Session {
 
 func (ss *Service) sessionFilePath(key string) string {
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(key)))
-	return filepath.Join(ss.storage, "session", hash+".jsonl")
+	return filepath.Join(ss.storage, hash+".jsonl")
 }
 
 func (ss *Service) SaveSession(s *Session) error {
