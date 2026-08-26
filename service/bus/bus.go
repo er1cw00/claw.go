@@ -20,12 +20,16 @@ func GetService() *Service {
 func (s *Service) Start() error {
 	s.evBus = NewEventBus()
 	s.msgBus = NewMessageBus()
-	logger.Info("Bus Service Start !")
+	logger.Info("[Bus] Service Start !")
 	return nil
 }
 
 func (s *Service) Stop() {
-	logger.Info("Bus Service Stop")
+	logger.Info("[Bus] Service Stop")
+}
+
+func (s *Service) Name() string {
+	return "Bus"
 }
 
 func (s *Service) GetEventBus() *EventBus {

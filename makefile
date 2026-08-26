@@ -3,7 +3,7 @@ all:
 	go build -o goclaw.out main/main.go main/version.go
 	
 run: all
-	mkdir -p ./data/log
+	mkdir -p ./data/logs
 	./goclaw.out -c ./main/goclaw.yaml
 clean:
 	@go clean -cache

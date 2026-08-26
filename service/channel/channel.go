@@ -75,6 +75,10 @@ func (s *Service) Stop() {
 	s.wg.Wait()
 }
 
+func (s *Service) Name() string {
+	return "Channel"
+}
+
 func (s *Service) dispatch(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	msgBus := bus.GetService().GetMessageBus()

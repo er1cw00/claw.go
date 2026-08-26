@@ -7,43 +7,38 @@ import (
 	cc "github.com/er1cw00/claw.go/service/cache"
 	ch "github.com/er1cw00/claw.go/service/channel"
 	ss "github.com/er1cw00/claw.go/service/session"
-	tools "github.com/er1cw00/claw.go/service/tools"
+	to "github.com/er1cw00/claw.go/service/tools"
 )
+
+type Service interface {
+	Start() error
+	Stop()
+	Name() string
+}
+
+var services []Service = []Service{
+	cc.GetService(),
+	bus.GetService(),
+	ch.GetService(),
+	to.GetService(),
+	ss.GetService(),
+	agent.GetService(),
+}
 
 func Start() error {
 	var err error = nil
 
-	if err = cc.GetService().Start(); err != nil {
-		logger.Errorf("❌ Cache Service Start fail, err: %v", err)
-		return err
-	}
-	if err = bus.GetService().Start(); err != nil {
-		logger.Errorf("❌ Bus Service Start fail, err: %v", err)
-		return err
-	}
-	if err = ch.GetService().Start(); err != nil {
-		logger.Errorf("❌ Channels Service Start fail, err: %v", err)
-		return err
-	}
-	if err = tools.GetService().Start(); err != nil {
-		logger.Errorf("❌ Tools Service Start fail, err: %v", err)
-		return err
-	}
-	if err = ss.GetService().Start(); err != nil {
-		logger.Errorf("❌ Session Service Start fail, err: %v", err)
-		return err
-	}
-	if err = agent.GetService().Start(); err != nil {
-		logger.Errorf("❌ Agent Service Start fail, err: %v", err)
-		return err
+	for _, s := range services {
+		if err = s.Start(); err != nil {
+			logger.Errorf("❌ %s Service Start fail, err: %v", s.Name(), err)
+			break
+		}
 	}
 	return err
 }
 
 func Stop() {
-	agent.GetService().Stop()
-	ch.GetService().Stop()
-	bus.GetService().Stop()
-	cc.GetService().Stop()
-
+	for _, s := range services {
+		s.Stop()
+	}
 }

@@ -23,7 +23,7 @@ func GetService() *Service {
 }
 
 func (s *Service) Start() error {
-	logger.Info("Agent Service Start !")
+	logger.Info("[Agent] Service Start !")
 	s.ctx, s.stop = context.WithCancel(context.Background())
 	s.agent = NewAgent()
 	if err := s.agent.Start(); err != nil {
@@ -37,7 +37,11 @@ func (s *Service) Start() error {
 
 // Stop 停止缓存服务
 func (s *Service) Stop() {
-	logger.Info("Agent Service Stop")
+	logger.Info("[Agent] Service Stop")
 	s.stop()
 	s.wg.Wait()
+}
+
+func (s *Service) Name() string {
+	return "Agent"
 }

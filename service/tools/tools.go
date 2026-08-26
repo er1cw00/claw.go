@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
 )
 
@@ -23,6 +25,7 @@ func GetService() *Service {
 
 func (s *Service) Start() error {
 
+	logger.Info("[Tools] Service Start")
 	list := []Tool{
 		NewBashTool(),
 	}
@@ -43,7 +46,13 @@ func (s *Service) Start() error {
 	s.tools = toolMap
 	return nil
 }
+func (s *Service) Stop() {
+	logger.Info("[Tools] Service Stop")
+}
 
+func (s *Service) Name() string {
+	return "Tools"
+}
 func (s *Service) GetTool(name string) (Tool, bool) {
 	tool, ok := s.tools[name]
 	return tool, ok

@@ -95,14 +95,18 @@ func GetService() *Service {
 }
 
 func (ss *Service) Start() error {
-	logger.Info("Session Service Start !")
+	logger.Info("[Session] Service Start !")
 	ss.storage = filepath.Join(base.GetSettings().WorkPath, "session")
 	return nil
 }
 
 // Stop 停止缓存服务
 func (s *Service) Stop() {
-	logger.Info("Session Service Stop")
+	logger.Info("[Session] Service Stop")
+}
+
+func (s *Service) Name() string {
+	return "Session"
 }
 
 func (ss *Service) NewSession(key string) *Session {

@@ -19,32 +19,27 @@ func Start(host string, port int) error {
 	r.Use(gin.Recovery())
 
 	addr := fmt.Sprintf("%s:%d", host, port)
-	logger.Debugf("listen: %s", addr)
+	logger.Debugf("[API] listen: %s", addr)
 
 	server = &http.Server{
 		Addr:    addr,
 		Handler: r,
 	}
 
-	// ListenAndServe 会一直阻塞，直到调用 srv.Shutdown
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-
-	logger.Debugf("HTTP 服务已成功停止")
 	return nil
-
-	//return r.Run(addr)
 }
 
 func Stop() {
-	logger.Debugf("Stop HTTP Server ...")
+	logger.Debugf("[API] Stop HTTP Server ...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // 设置优雅退出的超时时间（例如 5 秒），防止未处理完的请求无限阻塞
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		logger.Errorf("Stop HTTP Server fail, Err: %v", err)
+		logger.Errorf("[API] Stop HTTP Server fail, Err: %v", err)
 		return
 	}
-	logger.Debugf("HTTP Server stopped")
+	logger.Debugf("[API] HTTP Server stopped")
 }
