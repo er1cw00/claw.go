@@ -18,7 +18,6 @@ type ProviderConfig struct {
 
 type AgentConfig struct {
 	Name              string  `yaml:"name"`
-	Workspace         string  `yaml:"workspace"`
 	Provider          string  `yaml:"provider"`
 	Model             string  `yaml:"model"`
 	MaxTokens         int     `yaml:"max_tokens"`
@@ -58,7 +57,7 @@ type Settings struct {
 
 	Agent AgentConfig `yaml:"agent"`
 
-	WorkPath  string `yaml:"work_path"`
+	Workspace string `yaml:"workspace"`
 	MediaPath string `yaml:"media_path"`
 }
 
@@ -111,20 +110,16 @@ func parseSettings(path string) error {
 			return err
 		}
 	}
-
-	if settings.WorkPath == "" {
-		settings.WorkPath = settings.Agent.Workspace
-	}
-	if settings.WorkPath, err = filepath.Abs(settings.WorkPath); err != nil {
+	if settings.Workspace, err = filepath.Abs(settings.Workspace); err != nil {
 		fmt.Printf("workspace path unknown")
 		return err
 	}
-	if err = Mkdir(settings.WorkPath); err != nil {
+	if err = Mkdir(settings.Workspace); err != nil {
 		fmt.Printf("mkdir work path fail, err: %v", err)
 		return err
 	}
 	if settings.MediaPath == "" {
-		settings.MediaPath = filepath.Join(settings.WorkPath, "media")
+		settings.MediaPath = filepath.Join(settings.Workspace, "media")
 	}
 	if err = Mkdir(settings.MediaPath); err != nil {
 		fmt.Printf("mkdir media path fail, err: %v", err)

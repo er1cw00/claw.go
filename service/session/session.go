@@ -96,7 +96,7 @@ func GetService() *Service {
 
 func (ss *Service) Start() error {
 	logger.Info("[Session] Service Start !")
-	ss.storage = filepath.Join(base.GetSettings().WorkPath, "session")
+	ss.storage = filepath.Join(base.GetSettings().Workspace, "session")
 	return nil
 }
 
