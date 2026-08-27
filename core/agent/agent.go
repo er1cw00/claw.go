@@ -18,11 +18,12 @@ import (
 )
 
 type Agent struct {
-	llm        provider.LLMProvider
-	running    atomic.Bool
-	config     *base.AgentConfig
-	sessionKey string
-	name       string
+	llm            provider.LLMProvider
+	running        atomic.Bool
+	config         *base.AgentConfig
+	sessionKey     string
+	name           string
+	contextBuilder *ContextBuilder
 }
 
 func NewAgent() *Agent {
@@ -48,6 +49,7 @@ func (agent *Agent) Start() error {
 		return err
 	}
 	agent.llm = llm
+	agent.contextBuilder = NewContextBuilder(base.GetSettings().Workspace)
 
 	return nil
 }
@@ -96,14 +98,11 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	skey := ss.SessionKey(agent.name, inboundMessage.Channel, inboundMessage.ChatID)
 	session := ss.GetService().LoadSession(skey)
 
-	messages := []provider.Message{
-		{Role: provider.RoleSystem, Content: SYSTEM_PROMPT},
-	}
-	messages = append(messages, session.GetHistory(40)...)
-	messages = append(messages, provider.Message{
-		Role:    provider.RoleUser,
-		Content: inboundMessage.Content,
-	})
+	messages := agent.contextBuilder.BuildMessages(
+		session.GetHistory(40),
+		inboundMessage.Content,
+		nil,
+	)
 
 	// Append user message to session history.
 	_ = session.AddMessage(provider.Message{

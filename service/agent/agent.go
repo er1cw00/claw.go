@@ -5,11 +5,12 @@ import (
 	"sync"
 
 	"github.com/er1cw00/claw.go/base/logger"
+	"github.com/er1cw00/claw.go/core/agent"
 )
 
 // Service 缓存服务
 type Service struct {
-	agent *Agent
+	agent *agent.Agent
 	wg    sync.WaitGroup
 	ctx   context.Context
 	stop  context.CancelFunc
@@ -25,7 +26,7 @@ func GetService() *Service {
 func (s *Service) Start() error {
 	logger.Info("[Agent] Service Start !")
 	s.ctx, s.stop = context.WithCancel(context.Background())
-	s.agent = NewAgent()
+	s.agent = agent.NewAgent()
 	if err := s.agent.Start(); err != nil {
 		return err
 	}
