@@ -3,6 +3,7 @@ package session
 import (
 	"bufio"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -19,7 +20,7 @@ import (
 // the MD5 hex digest of the combined string.
 func SessionKey(agent, channel, chatId string) string {
 	raw := agent + ":" + channel + ":" + chatId
-	return fmt.Sprintf("%x", md5.Sum([]byte(raw)))
+	return base64.StdEncoding.EncodeToString([]byte(raw))
 }
 
 type Session struct {
@@ -52,6 +53,11 @@ func (s *Session) GetHistory(limit int) []provider.Message {
 	out := make([]provider.Message, limit)
 	copy(out, s.messages[n-limit:])
 	return out
+}
+
+func (s *Session) SetMessages(messages []provider.Message) {
+	s.messages = messages
+	s.updatedAt = time.Now()
 }
 
 func (s *Session) Clear() {

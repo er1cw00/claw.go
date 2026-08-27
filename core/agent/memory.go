@@ -119,7 +119,25 @@ func (ms *MemoryStore) ListMemoryFiles() []string {
 	return files
 }
 
-// GetMemoryContext returns formatted memory context including long-term and today's notes.
+// AppendHistory appends an entry to the long-term history file (HISTORY.md).
+func (ms *MemoryStore) AppendHistory(entry string) error {
+	if err := ms.ensureDir(); err != nil {
+		return err
+	}
+	historyFile := filepath.Join(ms.memoryDir, "HISTORY.md")
+	content, err := os.ReadFile(historyFile)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	var sb strings.Builder
+	if len(content) > 0 {
+		sb.Write(content)
+		sb.WriteString("\n\n")
+	}
+	sb.WriteString(entry)
+	return os.WriteFile(historyFile, []byte(sb.String()), 0644)
+}
+
 func (ms *MemoryStore) GetMemoryContext() string {
 	var parts []string
 

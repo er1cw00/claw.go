@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -196,16 +197,115 @@ func (agent *Agent) buildRequest(messages []provider.Message) *provider.Completi
 	}
 }
 
-// func (agent *Agent) runTurn(ctx context.Context, t *AgentTurn) error {
-// 	turnCtx, turnCancel := context.WithCancel(ctx)
-// 	defer turnCancel()
-// 	t.setTurnCancel(turnCancel)
+func (agent *Agent) consolidateMemory(ctx context.Context, session *ss.Session) error {
+	messages := session.Messages()
+	memoryWindow := 50
+	if memoryWindow <= 0 {
+		memoryWindow = 20
+	}
+	keepCount := min(10, max(2, memoryWindow/2))
+	if len(messages) <= keepCount {
+		return nil
+	}
+	oldMessages := messages[:len(messages)-keepCount]
 
-// 	for t.currentIteration() < 10 {
-// 		iteration := t.currentIteration() + 1
-// 		t.setIteration(iteration)
-// 		t.setState(TurnStateRunning)
-// 		req
-// 		agent.llm.Complete(ctx, buildRequest)
-// 	}
-// }
+	var lines []string
+	for _, m := range oldMessages {
+		if strings.TrimSpace(m.Content) == "" {
+			continue
+		}
+		var toolsUsed []string
+		for _, tc := range m.ToolCalls {
+			toolsUsed = append(toolsUsed, tc.Function.Name)
+		}
+		tools := ""
+		if len(toolsUsed) > 0 {
+			tools = fmt.Sprintf(" [tools: %s]", strings.Join(toolsUsed, ", "))
+		}
+		timestamp := "?"
+		if m.Timestamp > 0 {
+			timestamp = time.Unix(m.Timestamp, 0).Format("2006-01-02 15:04")
+		}
+		lines = append(lines, fmt.Sprintf("[%s] %s%s: %s", timestamp, strings.ToUpper(string(m.Role)), tools, m.Content))
+	}
+	if len(lines) == 0 {
+		return nil
+	}
+	conversation := strings.Join(lines, "\n")
+	memory := agent.contextBuilder.memory
+	currentMemory := memory.ReadLongTerm()
+
+	prompt := fmt.Sprintf(`You are a memory consolidation agent. Process this conversation and return a JSON object with exactly two keys:
+
+1. "history_entry": A paragraph (2-5 sentences) summarizing the key events/decisions/topics. Start with a timestamp like [YYYY-MM-DD HH:MM]. Include enough detail to be useful when found by grep search later.
+
+2. "memory_update": The updated long-term memory content. Add any new facts: user location, preferences, personal info, habits, project context, technical decisions, tools/services used. If nothing new, return the existing content unchanged.
+
+## Current Long-term Memory
+%s
+
+## Conversation to Process
+%s
+
+Respond with ONLY valid JSON, no markdown fences.`, currentMemoryOrEmpty(currentMemory), conversation)
+
+	systemMsg := provider.Message{
+		Role:    provider.RoleSystem,
+		Content: "You are a memory consolidation agent. Respond only with valid JSON.",
+	}
+	userMsg := provider.Message{
+		Role:    provider.RoleUser,
+		Content: prompt,
+	}
+	req := &provider.CompletionRequest{
+		Model:       agent.config.Model,
+		MaxTokens:   agent.config.MaxTokens,
+		Temperature: agent.config.Temperature,
+		Messages:    []provider.Message{systemMsg, userMsg},
+	}
+
+	resp, err := agent.llm.Complete(ctx, req)
+	if err != nil {
+		return fmt.Errorf("llm complete failed: %w", err)
+	}
+
+	text := strings.TrimSpace(resp.Content)
+	if strings.HasPrefix(text, "```") {
+		parts := strings.SplitN(text, "\n", 2)
+		if len(parts) == 2 {
+			text = strings.TrimSuffix(parts[1], "```")
+			text = strings.TrimSpace(text)
+		}
+	}
+
+	var result struct {
+		HistoryEntry string `json:"history_entry"`
+		MemoryUpdate string `json:"memory_update"`
+	}
+	if err := json.Unmarshal([]byte(text), &result); err != nil {
+		return fmt.Errorf("parse consolidation response failed: %w", err)
+	}
+
+	if result.HistoryEntry != "" {
+		if err := memory.AppendHistory(result.HistoryEntry); err != nil {
+			return fmt.Errorf("append history failed: %w", err)
+		}
+	}
+	if result.MemoryUpdate != "" && result.MemoryUpdate != currentMemory {
+		if err := memory.WriteLongTerm(result.MemoryUpdate); err != nil {
+			return fmt.Errorf("write long-term memory failed: %w", err)
+		}
+	}
+
+	newMessages := make([]provider.Message, keepCount)
+	copy(newMessages, messages[len(messages)-keepCount:])
+	session.SetMessages(newMessages)
+	return nil
+}
+
+func currentMemoryOrEmpty(content string) string {
+	if content == "" {
+		return "(empty)"
+	}
+	return content
+}

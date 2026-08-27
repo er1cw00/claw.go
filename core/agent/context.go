@@ -69,6 +69,7 @@ Skills with available="false" need dependencies installed first - you can try in
 // getIdentity returns the core identity section including current time and workspace info.
 func (b *ContextBuilder) getIdentity() string {
 	now := time.Now().Format("2006-01-02 15:04 (Monday)")
+	loc := time.Local
 	workspacePath, _ := filepath.Abs(b.workspace)
 
 	return fmt.Sprintf(`# claw.go 🦧
@@ -80,11 +81,12 @@ You are clawbot, a helpful AI assistant. You have access to tools that allow you
 - Send messages to users on chat channels
 
 ## Current Time
-%s
+%s %s
 
 ## Workspace
 Your workspace is at: %s
 - Memory files: %s/memory/MEMORY.md
+- History log: %s/memory/HISTORY.md (grep-searchable)
 - Custom skills: %s/skills/{skill-name}/SKILL.md
 
 IMPORTANT: When responding to direct questions or conversations, reply directly with your text response.
@@ -92,7 +94,8 @@ Only use the 'message' tool when you need to send a message to a specific chat c
 For normal conversation, just respond with text - do not call the message tool.
 
 Always be helpful, accurate, and concise. When using tools, explain what you're doing.
-When remembering something, write to %s/memory/MEMORY.md`, now, workspacePath, workspacePath, workspacePath, workspacePath)
+When remembering something, write to %s/memory/MEMORY.md
+To recall past events, grep %s/memory/HISTORY.md`, now, loc.String(), workspacePath, workspacePath, workspacePath, workspacePath, workspacePath, workspacePath)
 }
 
 // loadBootstrapFiles loads all bootstrap files from the workspace.
