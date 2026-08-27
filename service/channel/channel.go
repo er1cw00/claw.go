@@ -41,7 +41,7 @@ func (s *Service) Start() error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workPath := base.GetSettings().WorkPath
+	workspace := base.GetSettings().Workspace
 	mediaPath := base.GetSettings().MediaPath
 
 	if channels.Telegram.Enable {
@@ -53,7 +53,7 @@ func (s *Service) Start() error {
 		}
 	}
 	if channels.WeChat.Enable {
-		storage := filepath.Join(workPath, "wechat")
+		storage := filepath.Join(workspace, "wechat")
 		cc = wechat.NewWeChatChannel(storage, mediaPath)
 		if startErr := cc.Start(); startErr == nil {
 			s.channels[cc.Name()] = cc
