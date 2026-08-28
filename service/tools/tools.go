@@ -28,6 +28,7 @@ func (s *Service) Start() error {
 	logger.Info("[Tools] Service Start")
 	list := []Tool{
 		NewBashTool(),
+		NewCronTool(),
 	}
 
 	toolSpecs := make([]*provider.ToolFunction, len(list))

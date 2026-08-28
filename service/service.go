@@ -6,6 +6,7 @@ import (
 	"github.com/er1cw00/claw.go/service/bus"
 	cc "github.com/er1cw00/claw.go/service/cache"
 	ch "github.com/er1cw00/claw.go/service/channel"
+	cr "github.com/er1cw00/claw.go/service/cron"
 	ss "github.com/er1cw00/claw.go/service/session"
 	to "github.com/er1cw00/claw.go/service/tools"
 )
@@ -22,6 +23,7 @@ var services []Service = []Service{
 	ch.GetService(),
 	to.GetService(),
 	ss.GetService(),
+	cr.GetService(),
 	agent.GetService(),
 }
 
