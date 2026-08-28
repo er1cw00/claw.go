@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
 )
 
@@ -34,6 +35,7 @@ func (b *ContextBuilder) BuildSystemPrompt(skillNames []string) string {
 	var parts []string
 
 	parts = append(parts, b.getIdentity())
+	logger.Debugf("identify: %s", parts[0])
 
 	bootstrap := b.loadBootstrapFiles()
 	if bootstrap != "" {
@@ -68,8 +70,9 @@ Skills with available="false" need dependencies installed first - you can try in
 
 // getIdentity returns the core identity section including current time and workspace info.
 func (b *ContextBuilder) getIdentity() string {
-	now := time.Now().Format("2006-01-02 15:04 (Monday)")
-	loc := time.Local
+	//now := time.Now().Format("2006-01-02 15:04 (Monday)")
+	now := time.Now().Format(time.RFC1123)
+
 	workspacePath, _ := filepath.Abs(b.workspace)
 
 	return fmt.Sprintf(`# claw.go 🦧
@@ -81,7 +84,7 @@ You are clawbot, a helpful AI assistant. You have access to tools that allow you
 - Send messages to users on chat channels
 
 ## Current Time
-%s %s
+%s
 
 ## Workspace
 Your workspace is at: %s
@@ -95,7 +98,7 @@ For normal conversation, just respond with text - do not call the message tool.
 
 Always be helpful, accurate, and concise. When using tools, explain what you're doing.
 When remembering something, write to %s/memory/MEMORY.md
-To recall past events, grep %s/memory/HISTORY.md`, now, loc.String(), workspacePath, workspacePath, workspacePath, workspacePath, workspacePath, workspacePath)
+To recall past events, grep %s/memory/HISTORY.md`, now, workspacePath, workspacePath, workspacePath, workspacePath, workspacePath, workspacePath)
 }
 
 // loadBootstrapFiles loads all bootstrap files from the workspace.
