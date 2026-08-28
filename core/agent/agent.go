@@ -140,7 +140,7 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 
 		// Execute each tool call and append the result as a tool message.
 		for _, tc := range resp.ToolCalls {
-			toolResult, err := tools.GetService().ExecuteToolCall(ctx, tc.Function.Name, tc.Function.Arguments)
+			toolResult, err := agent.executeToolCall(ctx, inboundMessage.Sender(), tc.Function.Name, tc.Function.Arguments)
 			if err != nil {
 				logger.Warnf("[Agent] execute tool(%s) fail, err: %v", tc.Function.Name, err)
 			}
@@ -301,6 +301,31 @@ Respond with ONLY valid JSON, no markdown fences.`, currentMemoryOrEmpty(current
 	copy(newMessages, messages[len(messages)-keepCount:])
 	session.SetMessages(newMessages)
 	return nil
+}
+
+func (a *Agent) executeToolCall(ctx context.Context, sender *model.InboundSender, name, arguments string) (string, error) {
+	var (
+		err  error      = nil
+		ok   bool       = false
+		tool tools.Tool = nil
+		args map[string]interface{}
+	)
+	tool, ok = tools.GetService().GetTool(name)
+	if !ok {
+		return fmt.Sprintf("tool %q not found", name), err
+	}
+	if err := json.Unmarshal([]byte(arguments), &args); err != nil {
+		return fmt.Sprintf("failed to parse arguments: %v", err), err
+	}
+	if tool.Name() == "cron" {
+		args["channel"] = sender.Channel
+		args["chat_id"] = sender.ChatID
+	}
+	content, err := tool.Execute(ctx, args)
+	if err != nil {
+		return fmt.Sprintf("error: %v", err), err
+	}
+	return content, nil
 }
 
 func currentMemoryOrEmpty(content string) string {

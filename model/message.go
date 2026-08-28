@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+type InboundSender struct {
+	Channel  string // telegram, wechat
+	SenderID string // User identifier
+	ChatID   string // Chat/channel identifier
+}
+
 // InboundMessage is a message received from a chat channel.
 type InboundMessage struct {
 	Channel            string         // telegram, wechat
@@ -22,6 +28,14 @@ func (m InboundMessage) SessionKey() string {
 		return *m.SessionKeyOverride
 	}
 	return m.Channel + ":" + m.ChatID
+}
+
+func (m InboundMessage) Sender() *InboundSender {
+	return &InboundSender{
+		Channel:  m.Channel,
+		SenderID: m.SenderID,
+		ChatID:   m.ChatID,
+	}
 }
 
 // OutboundMessage is a message to send to a chat channel.

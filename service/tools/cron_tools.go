@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/er1cw00/claw.go/service/cron"
 )
@@ -35,6 +37,10 @@ func NewCronTool() *CronTool {
 			"cron_expr": {
 				"type": "string",
 				"description": "Cron expression like '0 9 * * *' (for scheduled tasks)"
+			},
+			"at": {
+				"type": "string",
+				"description": "ISO datetime for one-time execution (e.g. '2026-02-12T10:30:00')"
 			},
 			"job_id": {
 				"type": "string",
@@ -102,7 +108,17 @@ func (t *CronTool) addJob(args map[string]interface{}) (string, error) {
 		name = name[:40]
 	}
 
-	job, err := cron.GetService().AddJob(name, schedule, message, false, "", "", false)
+	deleteAfterRun := schedule.Kind == cron.ScheduleKindAt
+	channel, _ := args["channel"].(string)
+	chatID, _ := args["chat_id"].(string)
+	if channel == "" {
+		channel = "cron"
+	}
+	if chatID == "" {
+		chatID = "default"
+	}
+
+	job, err := cron.GetService().AddJob(name, schedule, message, false, channel, chatID, deleteAfterRun)
 	if err != nil {
 		return "", fmt.Errorf("failed to add job: %w", err)
 	}
@@ -135,9 +151,20 @@ func (t *CronTool) removeJob(args map[string]interface{}) (string, error) {
 }
 
 func (t *CronTool) parseSchedule(args map[string]interface{}) (cron.CronSchedule, error) {
+	atRaw, hasAt := args["at"].(string)
 	everySeconds, hasEvery := getInt(args, "every_seconds")
 	cronExpr, hasCron := args["cron_expr"].(string)
 
+	if hasAt && atRaw != "" {
+		atMs, err := parseAtTime(atRaw)
+		if err != nil {
+			return cron.CronSchedule{}, err
+		}
+		return cron.CronSchedule{
+			Kind: cron.ScheduleKindAt,
+			AtMs: atMs,
+		}, nil
+	}
 	if hasEvery && everySeconds > 0 {
 		return cron.CronSchedule{
 			Kind:    cron.ScheduleKindEvery,
@@ -150,7 +177,25 @@ func (t *CronTool) parseSchedule(args map[string]interface{}) (cron.CronSchedule
 			Expr: cronExpr,
 		}, nil
 	}
-	return cron.CronSchedule{}, errors.New("either every_seconds or cron_expr is required for add")
+	return cron.CronSchedule{}, errors.New("one of at, every_seconds or cron_expr is required for add")
+}
+
+func parseAtTime(raw string) (int64, error) {
+	if ms, err := strconv.ParseInt(raw, 10, 64); err == nil {
+		return ms, nil
+	}
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
+	for _, layout := range layouts {
+		if t, err := time.ParseInLocation(layout, raw, time.Local); err == nil {
+			return t.UnixMilli(), nil
+		}
+	}
+	return 0, fmt.Errorf("cannot parse 'at' time: %s", raw)
 }
 
 func getInt(args map[string]interface{}, key string) (int, bool) {

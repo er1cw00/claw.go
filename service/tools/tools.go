@@ -1,10 +1,6 @@
 package tools
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
 )
@@ -61,25 +57,4 @@ func (s *Service) GetTool(name string) (Tool, bool) {
 
 func (s *Service) GetToolSpecs() []*provider.ToolFunction {
 	return s.specs
-}
-
-func (s *Service) ExecuteToolCall(ctx context.Context, name, arguments string) (string, error) {
-	var (
-		err  error = nil
-		ok   bool  = false
-		tool Tool  = nil
-		args map[string]interface{}
-	)
-	tool, ok = s.tools[name]
-	if !ok {
-		return fmt.Sprintf("tool %q not found", name), err
-	}
-	if err := json.Unmarshal([]byte(arguments), &args); err != nil {
-		return fmt.Sprintf("failed to parse arguments: %v", err), err
-	}
-	content, err := tool.Execute(ctx, args)
-	if err != nil {
-		return fmt.Sprintf("error: %v", err), err
-	}
-	return content, nil
 }
