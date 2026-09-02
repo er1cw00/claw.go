@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type InboundSender struct {
+type Participant struct {
 	Channel  string // telegram, wechat
 	SenderID string // User identifier
 	ChatID   string // Chat/channel identifier
@@ -30,8 +30,8 @@ func (m InboundMessage) SessionKey() string {
 	return m.Channel + ":" + m.ChatID
 }
 
-func (m InboundMessage) Sender() *InboundSender {
-	return &InboundSender{
+func (m InboundMessage) To() *Participant {
+	return &Participant{
 		Channel:  m.Channel,
 		SenderID: m.SenderID,
 		ChatID:   m.ChatID,

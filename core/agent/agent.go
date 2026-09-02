@@ -303,7 +303,7 @@ Respond with ONLY valid JSON, no markdown fences.`, currentMemoryOrEmpty(current
 	return nil
 }
 
-func (a *Agent) executeToolCall(ctx context.Context, sender *model.InboundSender, name, arguments string) (string, error) {
+func (a *Agent) executeToolCall(ctx context.Context, to *model.Participant, name, arguments string) (string, error) {
 	var (
 		err  error      = nil
 		ok   bool       = false
@@ -318,8 +318,8 @@ func (a *Agent) executeToolCall(ctx context.Context, sender *model.InboundSender
 		return fmt.Sprintf("failed to parse arguments: %v", err), err
 	}
 	if tool.Name() == "cron" {
-		args["channel"] = sender.Channel
-		args["chat_id"] = sender.ChatID
+		args["channel"] = to.Channel
+		args["chat_id"] = to.ChatID
 	}
 	content, err := tool.Execute(ctx, args)
 	if err != nil {
