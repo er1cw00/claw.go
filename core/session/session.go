@@ -3,24 +3,25 @@ package session
 import (
 	"bufio"
 	"crypto/md5"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/er1cw00/claw.go/base"
+	//	"github.com/er1cw00/claw.go/base"
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
+	"github.com/pkoukk/tiktoken-go"
 )
 
 // BuildSessionKey concatenates agent, channel and chatId with ":" and returns
 // the MD5 hex digest of the combined string.
-func SessionKey(agent, channel, chatId string) string {
+func sessionKey(agent, channel, chatId string) string {
 	raw := agent + ":" + channel + ":" + chatId
-	return base64.StdEncoding.EncodeToString([]byte(raw))
+	return fmt.Sprintf("%x", md5.Sum([]byte(raw)))
 }
 
 type Session struct {
@@ -41,7 +42,7 @@ func (s *Session) AddMessage(message provider.Message) error {
 }
 
 func (s *Session) GetHistory(limit int) []provider.Message {
-	if limit <= 0 {
+	if limit <= 0 || len(s.messages) == 0 {
 		return []provider.Message{}
 	}
 	n := len(s.messages)
@@ -61,7 +62,6 @@ func (s *Session) SetMessages(messages []provider.Message) {
 }
 
 func (s *Session) Clear() {
-	s.messages = []provider.Message{}
 	s.messages = s.messages[:0]
 	s.updatedAt = time.Now()
 }
@@ -86,57 +86,49 @@ func (s *Session) Messages() []provider.Message {
 	return s.messages
 }
 
-type Service struct {
+type SessionStore struct {
 	storage  string
 	sessions map[string]*Session
+	tik      *tiktoken.Tiktoken
 	mu       sync.RWMutex
 }
 
-var ssService *Service = &Service{
-	sessions: make(map[string]*Session),
+func NewSessionStore(storage string) *SessionStore {
+	return &SessionStore{
+		storage:  storage,
+		sessions: make(map[string]*Session),
+	}
 }
 
-func GetService() *Service {
-	return ssService
-}
-
-func (ss *Service) Start() error {
+func (ss *SessionStore) Start() error {
+	var err error = nil
+	ss.tik, err = tiktoken.GetEncoding("cl100k_base")
+	if err != nil {
+		logger.Errorf("[Session] create tiktoken fail, err: %v", err)
+		return err
+	}
 	logger.Info("[Session] Service Start !")
-	ss.storage = filepath.Join(base.GetSettings().Workspace, "session")
 	return nil
 }
 
 // Stop 停止缓存服务
-func (s *Service) Stop() {
-	logger.Info("[Session] Service Stop")
+func (s *SessionStore) Stop() {
+	logger.Info("[Session] Store Stop")
 }
 
-func (s *Service) Name() string {
+func (s *SessionStore) SessionKey(agent, channel, chatId string) string {
+	return sessionKey(agent, channel, chatId)
+}
+func (s *SessionStore) Name() string {
 	return "Session"
 }
 
-func (ss *Service) NewSession(key string) *Session {
-	ss.mu.Lock()
-	defer ss.mu.Unlock()
-	if s, ok := ss.sessions[key]; ok {
-		return s
-	}
-	s := &Session{
-		key:       key,
-		messages:  []provider.Message{},
-		createdAt: time.Now(),
-		updatedAt: time.Now(),
-	}
-	ss.sessions[key] = s
-	return s
-}
-
-func (ss *Service) sessionFilePath(key string) string {
+func (ss *SessionStore) sessionFilePath(key string) string {
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(key)))
 	return filepath.Join(ss.storage, hash+".jsonl")
 }
 
-func (ss *Service) SaveSession(s *Session) error {
+func (ss *SessionStore) Save(s *Session) error {
 	if s == nil {
 		return nil
 	}
@@ -188,7 +180,7 @@ func (ss *Service) SaveSession(s *Session) error {
 	return nil
 }
 
-func (ss *Service) LoadSession(key string) *Session {
+func (ss *SessionStore) GetOrCreate(key string) *Session {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
@@ -252,4 +244,33 @@ func (ss *Service) LoadSession(key string) *Session {
 
 	ss.sessions[key] = s
 	return s
+}
+
+// EstimateMessageTokens estimates the prompt tokens contributed by one persisted message.
+func (ss *SessionStore) EstimateMessageTokens(message provider.Message) int {
+	var parts []string
+
+	if message.Content != "" {
+		parts = append(parts, message.Content)
+	}
+
+	if message.Name != "" {
+		parts = append(parts, message.Name)
+	}
+	if message.ToolCallID != "" {
+		parts = append(parts, message.ToolCallID)
+	}
+	if len(message.ToolCalls) > 0 {
+		if b, err := json.Marshal(message.ToolCalls); err == nil {
+			parts = append(parts, string(b))
+		}
+	}
+
+	payload := strings.Join(parts, "\n")
+	if payload == "" {
+		return 4
+	}
+
+	tokens := ss.tik.Encode(payload, nil, nil)
+	return max(4, len(tokens)+4)
 }

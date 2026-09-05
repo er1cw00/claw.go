@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -12,9 +13,9 @@ import (
 	"github.com/er1cw00/claw.go/base"
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
+	ss "github.com/er1cw00/claw.go/core/session"
 	"github.com/er1cw00/claw.go/model"
 	bus "github.com/er1cw00/claw.go/service/bus"
-	ss "github.com/er1cw00/claw.go/service/session"
 	"github.com/er1cw00/claw.go/service/tools"
 )
 
@@ -22,6 +23,7 @@ type Agent struct {
 	llm            provider.LLMProvider
 	running        atomic.Bool
 	config         *base.AgentConfig
+	store          *ss.SessionStore
 	sessionKey     string
 	name           string
 	contextBuilder *ContextBuilder
@@ -46,10 +48,18 @@ func (agent *Agent) Start() error {
 	)
 	llm, err = provider.NewProvider(agentConfig.Provider, providerConfig.APIKey, providerConfig.APIBase)
 	if err != nil {
-		logger.Errorf("failed to create llm provider: %v", err)
+		logger.Errorf("[Agent] failed to create llm provider: %v", err)
+		return err
+	}
+	storage := filepath.Join(base.GetSettings().Workspace, "session")
+	store := ss.NewSessionStore(storage)
+	if err = store.Start(); err != nil {
+		logger.Errorf("[Agent] start session store fail, err: %v", err)
 		return err
 	}
 	agent.llm = llm
+	agent.store = store
+
 	agent.contextBuilder = NewContextBuilder(base.GetSettings().Workspace)
 
 	return nil
@@ -96,8 +106,9 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	)
 	logger.Infof("[Agent] process in msg [%s-%s]", inboundMessage.Channel, inboundMessage.ChatID)
 
-	skey := ss.SessionKey(agent.name, inboundMessage.Channel, inboundMessage.ChatID)
-	session := ss.GetService().LoadSession(skey)
+	skey := agent.store.SessionKey(agent.name, inboundMessage.Channel, inboundMessage.ChatID)
+	logger.Debugf("session key: %s", skey)
+	session := agent.store.GetOrCreate(skey)
 
 	messages := agent.contextBuilder.BuildMessages(
 		session.GetHistory(40),
@@ -162,7 +173,7 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	}
 	msgBus.PublishOutbound(outboundMessage)
 
-	if err := ss.GetService().SaveSession(session); err != nil {
+	if err := agent.store.Save(session); err != nil {
 		logger.Warnf("[Agent] save session fail; err: %v", err)
 	}
 	return nil

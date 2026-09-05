@@ -30,7 +30,7 @@ func (m InboundMessage) SessionKey() string {
 	return m.Channel + ":" + m.ChatID
 }
 
-func (m InboundMessage) To() *Participant {
+func (m InboundMessage) Sender() *Participant {
 	return &Participant{
 		Channel:  m.Channel,
 		SenderID: m.SenderID,
