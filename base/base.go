@@ -4,7 +4,7 @@ import (
 	"github.com/er1cw00/claw.go/base/logger"
 )
 
-var DumpSettings = true
+var DumpSettings = false
 
 func Start(path string) error {
 	err := parseSettings(path)
