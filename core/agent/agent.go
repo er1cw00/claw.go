@@ -77,11 +77,13 @@ func (agent *Agent) RegisterTools() (*tl.Registry, error) {
 
 	list := []tl.Tool{
 		tl.NewBashTool(),
+		tl.NewWebSearchTool(),
+		tl.NewWebFetchTool(),
 		tl.NewCronTool(),
 	}
 	reg := tl.NewRegistry()
 	for _, tool := range list {
-		if err = reg.Register(tl.NewBashTool()); err != nil {
+		if err = reg.Register(tool); err != nil {
 			logger.Errorf("[Agent] register tool(%s) fail, err: %v", tool.Name(), err)
 			return nil, err
 		}
@@ -215,10 +217,10 @@ func (agent *Agent) buildRequest(messages []provider.Message) *provider.Completi
 		tools = append(tools, tool)
 	}
 
-	for i, msg := range messages {
-		str, _ := json.Marshal(msg)
-		logger.Debugf("msg(%d): %s", i, string(str))
-	}
+	// for i, msg := range messages {
+	// 	str, _ := json.Marshal(msg)
+	// 	logger.Debugf("msg(%d): %s", i, string(str))
+	// }
 	for i, tool := range tools {
 		str, _ := json.Marshal(tool)
 		logger.Debugf("tool(%d): %s", i, string(str))
