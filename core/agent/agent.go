@@ -14,16 +14,17 @@ import (
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
 	ss "github.com/er1cw00/claw.go/core/session"
+	tl "github.com/er1cw00/claw.go/core/tools"
 	"github.com/er1cw00/claw.go/model"
 	bus "github.com/er1cw00/claw.go/service/bus"
-	"github.com/er1cw00/claw.go/service/tools"
 )
 
 type Agent struct {
 	llm            provider.LLMProvider
 	running        atomic.Bool
 	config         *base.AgentConfig
-	store          *ss.SessionStore
+	sessions       *ss.SessionStore
+	tools          *tl.Registry
 	sessionKey     string
 	name           string
 	contextBuilder *ContextBuilder
@@ -43,6 +44,7 @@ func (agent *Agent) Start() error {
 	var (
 		err            error                = nil
 		llm            provider.LLMProvider = nil
+		tools          *tl.Registry         = nil
 		agentConfig                         = agent.config
 		providerConfig                      = base.GetProviderConfig(agentConfig.Provider)
 	)
@@ -52,17 +54,40 @@ func (agent *Agent) Start() error {
 		return err
 	}
 	storage := filepath.Join(base.GetSettings().Workspace, "session")
-	store := ss.NewSessionStore(storage)
-	if err = store.Start(); err != nil {
+	sessions := ss.NewSessionStore(storage)
+	if err = sessions.Start(); err != nil {
 		logger.Errorf("[Agent] start session store fail, err: %v", err)
 		return err
 	}
+	if tools, err = agent.RegisterTools(); err != nil {
+		logger.Errorf("[Agent] register tools fail, err: %v", err)
+		return err
+	}
 	agent.llm = llm
-	agent.store = store
+	agent.tools = tools
+	agent.sessions = sessions
 
 	agent.contextBuilder = NewContextBuilder(base.GetSettings().Workspace)
 
 	return nil
+}
+
+func (agent *Agent) RegisterTools() (*tl.Registry, error) {
+	var err error = nil
+
+	list := []tl.Tool{
+		tl.NewBashTool(),
+		tl.NewCronTool(),
+	}
+	reg := tl.NewRegistry()
+	for _, tool := range list {
+		if err = reg.Register(tl.NewBashTool()); err != nil {
+			logger.Errorf("[Agent] register tool(%s) fail, err: %v", tool.Name(), err)
+			return nil, err
+		}
+	}
+	logger.Infof("[Agent] register tools")
+	return reg, nil
 }
 
 func (agent *Agent) Run(ctx context.Context, wg *sync.WaitGroup) error {
@@ -106,9 +131,9 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	)
 	logger.Infof("[Agent] process in msg [%s-%s]", inboundMessage.Channel, inboundMessage.ChatID)
 
-	skey := agent.store.SessionKey(agent.name, inboundMessage.Channel, inboundMessage.ChatID)
+	skey := agent.sessions.SessionKey(agent.name, inboundMessage.Channel, inboundMessage.ChatID)
 	logger.Debugf("session key: %s", skey)
-	session := agent.store.GetOrCreate(skey)
+	session := agent.sessions.GetOrCreate(skey)
 
 	messages := agent.contextBuilder.BuildMessages(
 		session.GetHistory(40),
@@ -173,14 +198,14 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	}
 	msgBus.PublishOutbound(outboundMessage)
 
-	if err := agent.store.Save(session); err != nil {
+	if err := agent.sessions.Save(session); err != nil {
 		logger.Warnf("[Agent] save session fail; err: %v", err)
 	}
 	return nil
 }
 
 func (agent *Agent) buildRequest(messages []provider.Message) *provider.CompletionRequest {
-	specs := tools.GetService().GetToolSpecs()
+	specs := agent.tools.GetSpecs()
 	tools := make([]provider.Tool, 0)
 	for _, toolSpec := range specs {
 		tool := provider.Tool{
@@ -314,14 +339,14 @@ Respond with ONLY valid JSON, no markdown fences.`, currentMemoryOrEmpty(current
 	return nil
 }
 
-func (a *Agent) executeToolCall(ctx context.Context, to *model.Participant, name, arguments string) (string, error) {
+func (agent *Agent) executeToolCall(ctx context.Context, to *model.Participant, name, arguments string) (string, error) {
 	var (
-		err  error      = nil
-		ok   bool       = false
-		tool tools.Tool = nil
+		err  error   = nil
+		ok   bool    = false
+		tool tl.Tool = nil
 		args map[string]interface{}
 	)
-	tool, ok = tools.GetService().GetTool(name)
+	tool, ok = agent.tools.Get(name)
 	if !ok {
 		return fmt.Sprintf("tool %q not found", name), err
 	}

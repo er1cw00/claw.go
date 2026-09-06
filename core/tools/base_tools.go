@@ -19,7 +19,9 @@ func NewBaseTool(name, description string, parameters json.RawMessage) *BaseTool
 		parameters:  parameters,
 	}
 }
-
+func (t *BaseTool) Start() error {
+	return nil
+}
 func (t *BaseTool) Name() string {
 	return t.name
 }
