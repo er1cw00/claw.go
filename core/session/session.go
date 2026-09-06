@@ -49,11 +49,27 @@ func (s *Session) GetHistory(limit int) []provider.Message {
 	if limit >= n {
 		out := make([]provider.Message, n)
 		copy(out, s.messages)
-		return out
+		return s.trimHistoryStart(out)
 	}
 	out := make([]provider.Message, limit)
 	copy(out, s.messages[n-limit:])
-	return out
+	return s.trimHistoryStart(out)
+}
+
+// trimHistoryStart drops leading tool/assistant messages so the earliest
+// remaining message in the returned slice is always from the user.
+func (s *Session) trimHistoryStart(messages []provider.Message) []provider.Message {
+	start := 0
+	for i, msg := range messages {
+		if msg.Role == provider.RoleUser {
+			start = i
+			break
+		}
+	}
+	if start == 0 {
+		return messages
+	}
+	return messages[start:]
 }
 
 func (s *Session) SetMessages(messages []provider.Message) {
@@ -123,11 +139,6 @@ func (s *SessionStore) Name() string {
 	return "Session"
 }
 
-func (ss *SessionStore) sessionFilePath(key string) string {
-	hash := fmt.Sprintf("%x", md5.Sum([]byte(key)))
-	return filepath.Join(ss.storage, hash+".jsonl")
-}
-
 func (ss *SessionStore) Save(s *Session) error {
 	if s == nil {
 		return nil
@@ -135,7 +146,7 @@ func (ss *SessionStore) Save(s *Session) error {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
-	path := ss.sessionFilePath(s.key)
+	path := filepath.Join(ss.storage, s.key+".jsonl")
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
@@ -188,7 +199,7 @@ func (ss *SessionStore) GetOrCreate(key string) *Session {
 		return s
 	}
 
-	path := ss.sessionFilePath(key)
+	path := filepath.Join(ss.storage, key+".jsonl")
 	file, err := os.Open(path)
 	if err != nil {
 		s := &Session{
