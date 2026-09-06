@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/er1cw00/claw.go/base"
@@ -42,7 +43,7 @@ func (cc *TelegramChannel) Start() error {
 	}
 	bot, err := tele.NewBot(pref)
 	if err != nil {
-		logger.Errorf("Telegram Channel Start Fail, err: %v", err)
+		logger.Errorf("[Telegram] Channel Start Fail, err: %v", err)
 		return err
 	}
 	bot.Handle(tele.OnText, cc.handleText)
@@ -54,19 +55,37 @@ func (cc *TelegramChannel) Start() error {
 	cc.bot = bot
 
 	loop := func() {
+		logger.Infof("[Telegram] Start...")
 		cc.bot.Start()
 	}
 	go loop()
+
 	return nil
 }
 
 func (cc *TelegramChannel) Stop() {
-	logger.Infof("Telegram Channel Stop")
-	cc.bot.Stop()
+	logger.Infof("[Telegram] Stop")
+	if cc.bot != nil {
+		cc.bot.Stop()
+	}
 }
 func (cc *TelegramChannel) Name() string {
 	return ch.ChannelTelegram
 }
 func (cc TelegramChannel) SendMessage(msg *model.OutboundMessage) error {
+	var (
+		err error = nil
+	)
+	id, err := strconv.ParseInt(msg.ChatID, 10, 0)
+	if err != nil {
+		return err
+	}
+	to := &tele.User{ID: id}
+	if msg.Content != "" {
+		_, err = cc.bot.Send(to, msg.Content)
+	}
+	if err != nil {
+		logger.Errorf("[WeChat] Send message to user fail, err: %v", err)
+	}
 	return nil
 }

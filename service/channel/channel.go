@@ -46,20 +46,18 @@ func (s *Service) Start() error {
 
 	if channels.Telegram.Enable {
 		cc = telegram.NewTelegramChannel(channels.Telegram.Proxy, channels.Telegram.Token, mediaPath)
-		if startErr := cc.Start(); startErr == nil {
-			s.channels[cc.Name()] = cc
-		} else {
-			err = startErr
+		if err = cc.Start(); err != nil {
+			return err
 		}
+		s.channels[cc.Name()] = cc
 	}
 	if channels.WeChat.Enable {
 		storage := filepath.Join(workspace, "wechat")
 		cc = wechat.NewWeChatChannel(storage, mediaPath)
-		if startErr := cc.Start(); startErr == nil {
-			s.channels[cc.Name()] = cc
-		} else {
-			err = startErr
+		if err = cc.Start(); err != nil {
+			return err
 		}
+		s.channels[cc.Name()] = cc
 	}
 	s.wg.Add(1)
 	go s.dispatch(s.context, &s.wg)

@@ -85,7 +85,7 @@ func (cc *WeChatChannel) Stop() {
 func (cc *WeChatChannel) Name() string {
 	return ch.ChannelWeChat
 }
-func (cc WeChatChannel) SendMessage(msg *model.OutboundMessage) error {
+func (cc *WeChatChannel) SendMessage(msg *model.OutboundMessage) error {
 	var (
 		err error = nil
 	)
