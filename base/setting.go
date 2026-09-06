@@ -59,6 +59,7 @@ type Settings struct {
 
 	Workspace string `yaml:"workspace"`
 	MediaPath string `yaml:"media_path"`
+	Proxy     string `yaml:"proxy"`
 }
 
 var settings = new(Settings)
