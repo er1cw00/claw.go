@@ -173,7 +173,11 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 			logger.Errorf("[Agent] llm complete fail; err: %v", err)
 			break
 		}
-		logger.Debugf("resp: %v", resp)
+		reply := resp.Content
+		if len(reply) > 256 {
+			reply = reply[:256]
+		}
+		logger.Debugf("llm reponse: %v", reply)
 		logger.Debugf("Finish Reason: %s; toolcall: %d", resp.FinishReason, len(resp.ToolCalls))
 
 		assistantMsg := provider.Message{
@@ -238,10 +242,10 @@ func (agent *Agent) buildRequest(messages []provider.Message) *provider.Completi
 	// 	str, _ := json.Marshal(msg)
 	// 	logger.Debugf("msg(%d): %s", i, string(str))
 	// }
-	for i, tool := range tools {
-		str, _ := json.Marshal(tool)
-		logger.Debugf("tool(%d): %s", i, string(str))
-	}
+	// for i, tool := range tools {
+	// 	str, _ := json.Marshal(tool)
+	// 	logger.Debugf("tool(%d): %s", i, string(str))
+	// }
 	return &provider.CompletionRequest{
 		Model:       agent.config.Model,
 		MaxTokens:   agent.config.MaxTokens,

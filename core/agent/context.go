@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/er1cw00/claw.go/base/logger"
+	//	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
 )
 
@@ -35,7 +35,7 @@ func (b *ContextBuilder) BuildSystemPrompt(skillNames []string) string {
 	var parts []string
 
 	parts = append(parts, b.getIdentity())
-	logger.Debugf("identify: %s", parts[0])
+	//logger.Debugf("identify: %s", parts[0])
 
 	bootstrap := b.loadBootstrapFiles()
 	if bootstrap != "" {
