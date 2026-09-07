@@ -53,19 +53,13 @@ func (agent *Agent) Start() error {
 		logger.Errorf("[Agent] failed to create llm provider: %v", err)
 		return err
 	}
-	storage := filepath.Join(base.GetSettings().Workspace, "session")
-	sessions := ss.NewSessionStore(storage)
-	if err = sessions.Start(); err != nil {
-		logger.Errorf("[Agent] start session store fail, err: %v", err)
-		return err
-	}
+
 	if tools, err = agent.RegisterTools(); err != nil {
 		logger.Errorf("[Agent] register tools fail, err: %v", err)
 		return err
 	}
 	agent.llm = llm
 	agent.tools = tools
-	agent.sessions = sessions
 
 	agent.contextBuilder = NewContextBuilder(base.GetSettings().Workspace)
 
@@ -150,7 +144,7 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	})
 
 	for iteration := 0; iteration < MaxIteration; iteration++ {
-
+		logger.Debugf("last message: %s", messages[len(messages)-1].Content)
 		req = agent.buildRequest(messages)
 		if resp, err = agent.llm.Complete(ctx, req); err != nil {
 			logger.Errorf("[Agent] llm complete fail; err: %v", err)
@@ -200,7 +194,7 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	}
 	msgBus.PublishOutbound(outboundMessage)
 
-	if err := agent.sessions.Save(session); err != nil {
+	if err := ss.GetService().Save(session); err != nil {
 		logger.Warnf("[Agent] save session fail; err: %v", err)
 	}
 	return nil

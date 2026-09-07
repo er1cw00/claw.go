@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	//	"github.com/er1cw00/claw.go/base"
+	"github.com/er1cw00/claw.go/base"
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
 	"github.com/pkoukk/tiktoken-go"
@@ -19,7 +19,7 @@ import (
 
 // BuildSessionKey concatenates agent, channel and chatId with ":" and returns
 // the MD5 hex digest of the combined string.
-func sessionKey(agent, channel, chatId string) string {
+func SessionKey(agent, channel, chatId string) string {
 	raw := agent + ":" + channel + ":" + chatId
 	return fmt.Sprintf("%x", md5.Sum([]byte(raw)))
 }
@@ -102,22 +102,24 @@ func (s *Session) Messages() []provider.Message {
 	return s.messages
 }
 
-type SessionStore struct {
+type Service struct {
 	storage  string
 	sessions map[string]*Session
 	tik      *tiktoken.Tiktoken
 	mu       sync.RWMutex
 }
 
-func NewSessionStore(storage string) *SessionStore {
-	return &SessionStore{
-		storage:  storage,
-		sessions: make(map[string]*Session),
-	}
+var ssService = &Service{
+	sessions: make(map[string]*Session),
 }
 
-func (ss *SessionStore) Start() error {
+func GetService() *Service {
+	return ssService
+}
+
+func (ss *Service) Start() error {
 	var err error = nil
+	ss.storage = filepath.Join(base.GetSettings().Workspace, "session")
 	ss.tik, err = tiktoken.GetEncoding("cl100k_base")
 	if err != nil {
 		logger.Errorf("[Session] create tiktoken fail, err: %v", err)
@@ -128,18 +130,15 @@ func (ss *SessionStore) Start() error {
 }
 
 // Stop 停止缓存服务
-func (s *SessionStore) Stop() {
-	logger.Info("[Session] Store Stop")
+func (s *Service) Stop() {
+	logger.Info("[Session] Serivce Stop")
 }
 
-func (s *SessionStore) SessionKey(agent, channel, chatId string) string {
-	return sessionKey(agent, channel, chatId)
-}
-func (s *SessionStore) Name() string {
+func (s *Service) Name() string {
 	return "Session"
 }
 
-func (ss *SessionStore) Save(s *Session) error {
+func (ss *Service) Save(s *Session) error {
 	if s == nil {
 		return nil
 	}
@@ -191,7 +190,7 @@ func (ss *SessionStore) Save(s *Session) error {
 	return nil
 }
 
-func (ss *SessionStore) GetOrCreate(key string) *Session {
+func (ss *Service) GetOrCreate(key string) *Session {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
@@ -258,7 +257,7 @@ func (ss *SessionStore) GetOrCreate(key string) *Session {
 }
 
 // EstimateMessageTokens estimates the prompt tokens contributed by one persisted message.
-func (ss *SessionStore) EstimateMessageTokens(message provider.Message) int {
+func (ss *Service) EstimateMessageTokens(message provider.Message) int {
 	var parts []string
 
 	if message.Content != "" {

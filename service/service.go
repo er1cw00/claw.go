@@ -7,6 +7,7 @@ import (
 	cc "github.com/er1cw00/claw.go/service/cache"
 	ch "github.com/er1cw00/claw.go/service/channel"
 	cr "github.com/er1cw00/claw.go/service/cron"
+	ss "github.com/er1cw00/claw.go/service/session"
 )
 
 type Service interface {
@@ -20,6 +21,7 @@ var services []Service = []Service{
 	bus.GetService(),
 	ch.GetService(),
 	cr.GetService(),
+	ss.GetService(),
 	agent.GetService(),
 }
 
