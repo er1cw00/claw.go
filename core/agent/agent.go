@@ -129,7 +129,13 @@ func (agent *Agent) Run(ctx context.Context, wg *sync.WaitGroup) error {
 func (agent *Agent) Stop() {
 	agent.running.Store(false)
 }
+func (agent *Agent) printMessageContent(label, content string) {
 
+	if len(content) > 256 {
+		content = content[:256]
+	}
+	logger.Debugf("%s: %s", label, content)
+}
 func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage model.InboundMessage) error {
 	var (
 		err          error                        = nil
@@ -167,17 +173,13 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	})
 
 	for iteration := 0; iteration < MaxIteration; iteration++ {
-		logger.Debugf("last message: %s", messages[len(messages)-1].Content)
+		agent.printMessageContent("last message", messages[len(messages)-1].Content)
 		req = agent.buildRequest(messages)
 		if resp, err = agent.llm.Complete(ctx, req); err != nil {
 			logger.Errorf("[Agent] llm complete fail; err: %v", err)
 			break
 		}
-		reply := resp.Content
-		if len(reply) > 256 {
-			reply = reply[:256]
-		}
-		logger.Debugf("llm reponse: %v", reply)
+		agent.printMessageContent("llm response", resp.Content)
 		logger.Debugf("Finish Reason: %s; toolcall: %d", resp.FinishReason, len(resp.ToolCalls))
 
 		assistantMsg := provider.Message{
