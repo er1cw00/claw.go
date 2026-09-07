@@ -17,7 +17,10 @@ func (cc *TelegramChannel) handleText(c tele.Context) error {
 		text         = c.Text()
 	)
 	logger.Debugf("==================================================")
-	logger.Debugf("uid: %d, chat id: %d", sender.ID, chat.ID)
+	if !cc.checkAllowSender(sender.ID) {
+		logger.Warnf("no allow user(%d) text: %s", sender.ID, text)
+		return nil
+	}
 	inbound := &model.InboundMessage{
 		Channel:   cc.Name(),
 		SenderID:  fmt.Sprintf("%d", sender.ID),

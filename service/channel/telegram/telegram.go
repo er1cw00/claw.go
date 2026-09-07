@@ -17,13 +17,24 @@ type TelegramChannel struct {
 	proxy     string
 	token     string
 	mediaPath string
+	allow     map[int64]bool
 	bot       *tele.Bot
 }
 
-func NewTelegramChannel(proxy, token, mediaPath string) *TelegramChannel {
+func NewTelegramChannel(proxy, token string, allow []string, mediaPath string) *TelegramChannel {
+	dict := make(map[int64]bool, 0)
+	for _, uid := range allow {
+		user, err := strconv.ParseInt(uid, 10, 64)
+		if err != nil {
+			logger.Errorf("[Channel] Telegram uid (%s) unknown; err: %v", uid, err)
+		} else {
+			dict[user] = true
+		}
+	}
 	return &TelegramChannel{
 		proxy:     proxy,
 		token:     token,
+		allow:     dict,
 		mediaPath: mediaPath,
 	}
 }
@@ -88,4 +99,8 @@ func (cc TelegramChannel) SendMessage(msg *model.OutboundMessage) error {
 		logger.Errorf("[WeChat] Send message to user fail, err: %v", err)
 	}
 	return nil
+}
+func (cc TelegramChannel) checkAllowSender(uid int64) bool {
+	r, ok := cc.allow[uid]
+	return r && ok
 }

@@ -59,7 +59,9 @@ func (t *BashTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Sprintf("Command failed: %s\nOutput: %s", err.Error(), string(output)), err
+		if len(output) == 0 {
+			return fmt.Sprintf("Command failed: %s", err.Error()), err
+		}
 	}
 	return string(output), nil
 }

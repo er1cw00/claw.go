@@ -45,7 +45,7 @@ func (s *Service) Start() error {
 	mediaPath := base.GetSettings().MediaPath
 
 	if channels.Telegram.Enable {
-		cc = telegram.NewTelegramChannel(channels.Telegram.Proxy, channels.Telegram.Token, mediaPath)
+		cc = telegram.NewTelegramChannel(channels.Telegram.Proxy, channels.Telegram.Token, channels.Telegram.Allow, mediaPath)
 		if err = cc.Start(); err != nil {
 			return err
 		}

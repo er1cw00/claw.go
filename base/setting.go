@@ -40,9 +40,10 @@ type Settings struct {
 
 	Channels struct {
 		Telegram struct {
-			Enable bool   `yaml:"enable"`
-			Token  string `yaml:"token"`
-			Proxy  string `yaml:"proxy"`
+			Enable bool     `yaml:"enable"`
+			Token  string   `yaml:"token"`
+			Allow  []string `yaml:"allow`
+			Proxy  string   `yaml:"proxy"`
 		} `yaml:"telegram"`
 		WeChat struct {
 			Enable bool `yaml:"enable"`
