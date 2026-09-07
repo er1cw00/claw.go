@@ -23,7 +23,7 @@ func NewCronTool() *CronTool {
 		"properties": {
 			"action": {
 				"type": "string",
-				"enum": ["add", "list", "remove"],
+				"enum": ["add", "list", "remove", "enable", "disable"],
 				"description": "Action to perform"
 			},
 			"message": {
@@ -87,11 +87,34 @@ func (t *CronTool) Execute(ctx context.Context, args map[string]interface{}) (st
 		return t.listJobs()
 	case "remove":
 		return t.removeJob(args)
+	case "enable":
+		return t.enableJob(args)
+	case "disable":
+		return t.disableJob(args)
 	default:
 		return "", fmt.Errorf("unsupported action: %s", action)
 	}
 }
-
+func (t *CronTool) enableJob(args map[string]interface{}) (string, error) {
+	jobID, _ := args["job_id"].(string)
+	if jobID == "" {
+		return "", errors.New("job_id is required for enable")
+	}
+	if job := cron.GetService().EnableJob(jobID, true); job == nil {
+		return fmt.Sprintf("Job %s not found.", jobID), nil
+	}
+	return fmt.Sprintf("Job %s enabled.", jobID), nil
+}
+func (t *CronTool) disableJob(args map[string]interface{}) (string, error) {
+	jobID, _ := args["job_id"].(string)
+	if jobID == "" {
+		return "", errors.New("job_id is required for disable")
+	}
+	if job := cron.GetService().EnableJob(jobID, false); job == nil {
+		return fmt.Sprintf("Job %s not found.", jobID), nil
+	}
+	return fmt.Sprintf("Job %s disabled.", jobID), nil
+}
 func (t *CronTool) addJob(args map[string]interface{}) (string, error) {
 	message, _ := args["message"].(string)
 	if message == "" {
