@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/er1cw00/claw.go/api/admin"
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +18,9 @@ func Start(host string, port int) error {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
+
+	g := r.Group("/admin")
+	admin.Setup(g)
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 	logger.Debugf("[API] listen: %s", addr)
