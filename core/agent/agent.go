@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -12,20 +11,20 @@ import (
 
 	"github.com/er1cw00/claw.go/base"
 	"github.com/er1cw00/claw.go/base/logger"
+	"github.com/er1cw00/claw.go/core/cmd"
 	"github.com/er1cw00/claw.go/core/provider"
-	ss "github.com/er1cw00/claw.go/core/session"
 	tl "github.com/er1cw00/claw.go/core/tools"
 	"github.com/er1cw00/claw.go/model"
 	bus "github.com/er1cw00/claw.go/service/bus"
+	ss "github.com/er1cw00/claw.go/service/session"
 )
 
 type Agent struct {
 	llm            provider.LLMProvider
 	running        atomic.Bool
 	config         *base.AgentConfig
-	sessions       *ss.SessionStore
 	tools          *tl.Registry
-	sessionKey     string
+	commands       *cmd.Registry
 	name           string
 	contextBuilder *ContextBuilder
 }
@@ -48,6 +47,7 @@ func (agent *Agent) Start() error {
 		agentConfig                         = agent.config
 		providerConfig                      = base.GetProviderConfig(agentConfig.Provider)
 	)
+
 	llm, err = provider.NewProvider(agentConfig.Provider, providerConfig.APIKey, providerConfig.APIBase)
 	if err != nil {
 		logger.Errorf("[Agent] failed to create llm provider: %v", err)
@@ -58,14 +58,27 @@ func (agent *Agent) Start() error {
 		logger.Errorf("[Agent] register tools fail, err: %v", err)
 		return err
 	}
+
 	agent.llm = llm
 	agent.tools = tools
-
+	agent.commands = agent.RegisterCommands()
 	agent.contextBuilder = NewContextBuilder(base.GetSettings().Workspace)
 
 	return nil
 }
 
+func (agent *Agent) RegisterCommands() *cmd.Registry {
+	list := []cmd.Command{
+		cmd.NewCommandNew(),
+		// TODO; register commands here
+	}
+	reg := cmd.NewRegistry()
+	for _, tool := range list {
+		reg.Register(tool)
+	}
+	logger.Infof("[Agent] register commands.")
+	return reg
+}
 func (agent *Agent) RegisterTools() (*tl.Registry, error) {
 	var err error = nil
 
@@ -74,6 +87,7 @@ func (agent *Agent) RegisterTools() (*tl.Registry, error) {
 		tl.NewWebSearchTool(),
 		tl.NewWebFetchTool(),
 		tl.NewCronTool(),
+		// TODO; register tools here
 	}
 	reg := tl.NewRegistry()
 	for _, tool := range list {
@@ -105,7 +119,6 @@ func (agent *Agent) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			if !ok {
 				return nil
 			}
-			fmt.Printf("msg: %v", msg)
 			agent.processInboundMessage(ctx, msg)
 			continue
 		}
@@ -127,9 +140,19 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	)
 	logger.Infof("[Agent] process in msg [%s-%s]", inboundMessage.Channel, inboundMessage.ChatID)
 
-	skey := agent.sessions.SessionKey(agent.name, inboundMessage.Channel, inboundMessage.ChatID)
+	skey := ss.SessionKey(agent.name, inboundMessage.Channel, inboundMessage.ChatID)
+	session := ss.GetService().GetOrCreate(skey)
 	logger.Debugf("session key: %s", skey)
-	session := agent.sessions.GetOrCreate(skey)
+
+	if reply, ret := agent.commands.HandleCommand(inboundMessage.Sender(), inboundMessage.Content, session); ret {
+		outboundMessage := model.OutboundMessage{
+			Channel: inboundMessage.Channel,
+			ChatID:  inboundMessage.ChatID,
+			Content: reply,
+		}
+		msgBus.PublishOutbound(outboundMessage)
+		return nil
+	}
 
 	messages := agent.contextBuilder.BuildMessages(
 		session.GetHistory(40),
