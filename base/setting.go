@@ -42,7 +42,7 @@ type Settings struct {
 		Telegram struct {
 			Enable bool     `yaml:"enable"`
 			Token  string   `yaml:"token"`
-			Allow  []string `yaml:"allow`
+			Allow  []string `yaml:"allow"`
 			Proxy  string   `yaml:"proxy"`
 		} `yaml:"telegram"`
 		WeChat struct {
@@ -54,6 +54,7 @@ type Settings struct {
 		Custom     ProviderConfig `yaml:"custom"`
 		OpenRouter ProviderConfig `yaml:"openrouter"`
 		DeepSeek   ProviderConfig `yaml:"deepseek"`
+		OpenCode   ProviderConfig `yaml:"opencode"`
 	} `yaml:"providers"`
 
 	Agent AgentConfig `yaml:"agent"`
@@ -70,7 +71,7 @@ func GetSettings() *Settings {
 }
 
 // GetProviderConfig returns the configuration for the named provider.
-// Supported names: "custom", "openrouter", "deepseek" (case-insensitive).
+// Supported names: "custom", "openrouter", "deepseek", "opencode" (case-insensitive).
 func GetProviderConfig(name string) ProviderConfig {
 	switch strings.ToLower(name) {
 	case "custom":
@@ -79,6 +80,8 @@ func GetProviderConfig(name string) ProviderConfig {
 		return settings.Providers.OpenRouter
 	case "deepseek":
 		return settings.Providers.DeepSeek
+	case "opencode":
+		return settings.Providers.OpenCode
 	default:
 		return ProviderConfig{}
 	}
