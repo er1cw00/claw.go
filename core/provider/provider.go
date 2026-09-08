@@ -59,6 +59,7 @@ type CompletionRequest struct {
 	Temperature float64
 	Tools       []Tool
 	ToolChoice  string // "auto", "none", "required", or "function_name"
+	SessionID   string // optional session identifier, used as x-opencode-session by OpenCode
 }
 
 // CompletionResponse is the result of a non-streaming chat completion.
@@ -80,7 +81,7 @@ type LLMProvider interface {
 }
 
 // NewProvider returns an LLMProvider implementation by name.
-// Supported names: "openai", "openrouter", "deepseek".
+// Supported names: "openai", "openrouter", "deepseek", "opencode".
 func NewProvider(name, apiKey, baseURL string) (LLMProvider, error) {
 	switch strings.ToLower(name) {
 	case "openai":
@@ -91,6 +92,8 @@ func NewProvider(name, apiKey, baseURL string) (LLMProvider, error) {
 		return NewOpenRouterProvider(apiKey, baseURL), nil
 	case "deepseek":
 		return NewDeepSeekProvider(apiKey, baseURL), nil
+	case "opencode":
+		return NewOpenCodeProvider(apiKey, baseURL), nil
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", name)
 	}

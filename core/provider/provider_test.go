@@ -9,7 +9,7 @@ import (
 )
 
 func TestProviderFactory(t *testing.T) {
-	cases := []string{"openai", "custom", "openrouter", "deepseek"}
+	cases := []string{"openai", "custom", "openrouter", "deepseek", "opencode"}
 	for _, name := range cases {
 		p, err := NewProvider(name, "", "")
 		if err != nil {

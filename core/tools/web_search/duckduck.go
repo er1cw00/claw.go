@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/er1cw00/claw.go/base"
+	"github.com/er1cw00/claw.go/base/logger"
 )
 
 // ddgResponse is the top-level DDG Instant Answer API JSON structure.
@@ -48,6 +49,7 @@ func NewDuckDuckGo(proxy string) *DuckDuckGo {
 func (c *DuckDuckGo) Query(ctx context.Context, query string) (string, error) {
 	apiURL := c.baseURL + "/?q=" + url.QueryEscape(query) +
 		"&format=json&no_html=1&skip_disambig=1&t=clawgo"
+	logger.Debugf("[DuckDuckGo] apiURL: %s", apiURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return "", err

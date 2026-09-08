@@ -24,7 +24,7 @@ type openAICompatibleProvider struct {
 
 // newOpenAICompatibleProvider creates a provider backed by github.com/openai/openai-go.
 // The baseURL can be overridden for OpenRouter/DeepSeek/private endpoints.
-func newOpenAICompatibleProvider(name, apiKey, baseURL, proxy string) *openAICompatibleProvider {
+func newOpenAICompatibleProvider(name, apiKey, baseURL, proxy string, extraOpts ...option.RequestOption) *openAICompatibleProvider {
 	httpClient := &http.Client{Timeout: 120 * time.Second}
 	if proxy != "" {
 		if proxyURL, err := url.Parse(proxy); err == nil {
@@ -43,6 +43,7 @@ func newOpenAICompatibleProvider(name, apiKey, baseURL, proxy string) *openAICom
 	if baseURL != "" {
 		opts = append(opts, option.WithBaseURL(strings.TrimSuffix(baseURL, "/")))
 	}
+	opts = append(opts, extraOpts...)
 
 	return &openAICompatibleProvider{
 		name:   name,
@@ -132,7 +133,12 @@ func (p *openAICompatibleProvider) Complete(ctx context.Context, req *Completion
 		params.ToolChoice = toToolChoice(req.ToolChoice)
 	}
 
-	chatResp, err := p.client.Chat.Completions.New(ctx, params)
+	opts := []option.RequestOption{}
+	if p.name == "opencode" && req.SessionID != "" {
+		opts = append(opts, option.WithHeader("x-opencode-session", req.SessionID))
+	}
+
+	chatResp, err := p.client.Chat.Completions.New(ctx, params, opts...)
 	if err != nil {
 		return resp, fmt.Errorf("chat completion failed: %w", err)
 	}

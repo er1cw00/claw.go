@@ -20,7 +20,7 @@ type WebSearchTool struct {
 
 func NewWebSearchTool() *WebSearchTool {
 	schema := json.RawMessage(`{
-		"type": "string",
+		"type": "object",
 		"properties": {
 			"query": { "type": "string", "description": "Search query" }
 		},
@@ -72,7 +72,7 @@ type WebFetchTool struct {
 
 func NewWebFetchTool() *WebFetchTool {
 	schema := json.RawMessage(`{
-		"type": "string",
+		"type": "object",
 		"properties": {
 			"url": { "type": "string", "description": "The URL to fetch (must be http or https)" }
 		},

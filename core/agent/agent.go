@@ -175,6 +175,9 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 	for iteration := 0; iteration < MaxIteration; iteration++ {
 		agent.printMessageContent("last message", messages[len(messages)-1].Content)
 		req = agent.buildRequest(messages)
+		if agent.llm.Name() == "opencode" {
+			req.SessionID = skey
+		}
 		if resp, err = agent.llm.Complete(ctx, req); err != nil {
 			logger.Errorf("[Agent] llm complete fail; err: %v", err)
 			break
