@@ -5,6 +5,10 @@ all:
 run: all
 	mkdir -p ./data/logs
 	./goclaw.out -c ./main/goclaw.yaml
+	
+install: all
+	cp goclaw.out /opt/claw/bin/claw
+	
 clean:
 	@go clean -cache
 	@rm -f goclaw.out
