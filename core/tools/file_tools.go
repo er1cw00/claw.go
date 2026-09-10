@@ -68,7 +68,7 @@ func NewWriteFileTool() *WriteFileTool {
 		"properties": {
 			"path": { "type": "string", "description": "The file path to write to" },
 			"content": { "type": "string", "description": "Content to write to the file" },
-			"append": { "type": "boolean", "description": "Whether to append to the file instead of overwriting" },
+			"append": { "type": "boolean", "description": "Whether to append to the file instead of overwriting" }
 		},
 		"required": ["path", "content"]
 	}`)

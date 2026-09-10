@@ -87,6 +87,9 @@ func (agent *Agent) RegisterTools() (*tl.Registry, error) {
 		tl.NewWebSearchTool(),
 		tl.NewWebFetchTool(),
 		tl.NewCronTool(),
+		tl.NewReadFileTool(),
+		tl.NewWriteFileTool(),
+		tl.NewEditFileTool(),
 		// TODO; register tools here
 	}
 	reg := tl.NewRegistry()
