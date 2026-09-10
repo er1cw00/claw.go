@@ -27,8 +27,11 @@ type SkillsLoader struct {
 
 var (
 	// stripSkillFrontmatter matches YAML frontmatter at the start of a markdown file.
+	// stripSkillFrontmatter = regexp.MustCompile(
+	// 	`^---\s*\r?\n(.*?)\r?\n---\s*\r?\n?`,
+	// )
 	stripSkillFrontmatter = regexp.MustCompile(
-		`^---\s*\r?\n(.*?)\r?\n---\s*\r?\n?`,
+		`(?s)^---\s*\r?\n(.*?)\r?\n---\s*\r?\n?`,
 	)
 )
 
