@@ -179,7 +179,7 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 		agent.printMessageContent("last message", messages[len(messages)-1].Content)
 		req = agent.buildRequest(messages)
 		if agent.llm.Name() == "opencode" {
-			req.SessionID = session.SessionID()
+			req.SessionID = skey //session.SessionID()
 		}
 		if resp, err = agent.llm.Complete(ctx, req); err != nil {
 			logger.Errorf("[Agent] llm complete fail; err: %v", err)
