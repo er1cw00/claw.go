@@ -299,8 +299,8 @@ func (agent *Agent) consolidateMemory(ctx context.Context, session *ss.Session) 
 		return nil
 	}
 	conversation := strings.Join(lines, "\n")
-	memory := agent.contextBuilder.memory
-	currentMemory := memory.ReadLongTerm()
+	memoryStore := agent.contextBuilder.memory
+	currentMemory := memoryStore.ReadLongTerm()
 
 	prompt := fmt.Sprintf(`You are a memory consolidation agent. Process this conversation and return a JSON object with exactly two keys:
 
@@ -354,12 +354,12 @@ Respond with ONLY valid JSON, no markdown fences.`, currentMemoryOrEmpty(current
 	}
 
 	if result.HistoryEntry != "" {
-		if err := memory.AppendHistory(result.HistoryEntry); err != nil {
+		if err := memoryStore.AppendHistory(result.HistoryEntry); err != nil {
 			return fmt.Errorf("append history failed: %w", err)
 		}
 	}
 	if result.MemoryUpdate != "" && result.MemoryUpdate != currentMemory {
-		if err := memory.WriteLongTerm(result.MemoryUpdate); err != nil {
+		if err := memoryStore.WriteLongTerm(result.MemoryUpdate); err != nil {
 			return fmt.Errorf("write long-term memory failed: %w", err)
 		}
 	}

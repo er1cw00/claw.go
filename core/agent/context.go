@@ -8,6 +8,8 @@ import (
 	"time"
 
 	//	"github.com/er1cw00/claw.go/base/logger"
+	"github.com/er1cw00/claw.go/base/logger"
+	"github.com/er1cw00/claw.go/core/memory"
 	"github.com/er1cw00/claw.go/core/provider"
 )
 
@@ -17,7 +19,7 @@ var BootstrapFiles = []string{"AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", "ID
 // ContextBuilder assembles the agent's system prompt and message list.
 type ContextBuilder struct {
 	workspace string
-	memory    *MemoryStore
+	memory    *memory.MemoryStore
 	skills    *SkillsLoader
 }
 
@@ -25,7 +27,7 @@ type ContextBuilder struct {
 func NewContextBuilder(workspace string) *ContextBuilder {
 	return &ContextBuilder{
 		workspace: workspace,
-		memory:    NewMemoryStore(workspace),
+		memory:    memory.NewMemoryStore(workspace),
 		skills:    NewSkillsLoader(workspace, []string{}),
 	}
 }
@@ -118,9 +120,10 @@ func (b *ContextBuilder) loadBootstrapFiles() string {
 // BuildMessages builds the complete message list for an LLM call.
 func (b *ContextBuilder) BuildMessages(history []provider.Message, currentMessage string, skillNames []string) []provider.Message {
 	messages := make([]provider.Message, 0, len(history)+2)
+	systemPrompt := b.BuildSystemPrompt(skillNames)
 	messages = append(messages, provider.Message{
 		Role:    provider.RoleSystem,
-		Content: b.BuildSystemPrompt(skillNames),
+		Content: systemPrompt, //b.BuildSystemPrompt(skillNames),
 	})
 	messages = append(messages, history...)
 	messages = append(messages, provider.Message{
