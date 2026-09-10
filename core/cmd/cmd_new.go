@@ -30,7 +30,7 @@ func (c *CommandNew) Description() string {
 func (c *CommandNew) Execute(ctx *CommandContext) (string, bool) {
 	logger.Debugf("[Command] /new from channel(%s); chat(%s)", ctx.From.Channel, ctx.From.ChatID)
 	session := ctx.Session
-	session.Clear()
+	session.Reset()
 	ss.GetService().Save(session)
 	return "🐒 New session started.", true
 }

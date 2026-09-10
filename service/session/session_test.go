@@ -58,9 +58,9 @@ func TestClear(t *testing.T) {
 	if len(s.GetHistory(10)) != 1 {
 		t.Fatalf("expected 1 message before clear")
 	}
-	s.Clear()
+	s.Reset()
 	if len(s.GetHistory(10)) != 0 {
-		t.Errorf("expected 0 messages after clear, got %d", len(s.GetHistory(10)))
+		t.Errorf("expected 0 messages after reset, got %d", len(s.GetHistory(10)))
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/er1cw00/claw.go/base"
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/provider"
+	"github.com/google/uuid"
 	"github.com/pkoukk/tiktoken-go"
 )
 
@@ -26,6 +27,7 @@ func SessionKey(agent, channel, chatId string) string {
 
 type Session struct {
 	key       string
+	sessionID string
 	messages  []provider.Message
 	createdAt time.Time
 	updatedAt time.Time
@@ -34,6 +36,24 @@ type Session struct {
 
 func (s *Session) Key() string {
 	return s.key
+}
+
+func (s *Session) SessionID() string {
+	return s.sessionID
+}
+
+func newSession(key string) *Session {
+	sid := uuid.New().String()
+	return &Session{
+		key:       key,
+		sessionID: sid,
+		messages:  []provider.Message{},
+		createdAt: time.Now(),
+		updatedAt: time.Now(),
+		metadata: map[string]any{
+			"session_id": sid,
+		},
+	}
 }
 
 func (s *Session) AddMessage(message provider.Message) error {
@@ -77,8 +97,13 @@ func (s *Session) SetMessages(messages []provider.Message) {
 	s.updatedAt = time.Now()
 }
 
-func (s *Session) Clear() {
+func (s *Session) Reset() {
 	s.messages = s.messages[:0]
+	s.sessionID = uuid.New().String()
+	if s.metadata == nil {
+		s.metadata = make(map[string]any)
+	}
+	s.metadata["session_id"] = s.sessionID
 	s.updatedAt = time.Now()
 }
 
@@ -157,10 +182,11 @@ func (ss *Service) Save(s *Session) error {
 	defer file.Close()
 
 	metadata := map[string]any{
-		"_type":      "metadata",
-		"created_at": s.createdAt.Format(time.RFC3339Nano),
-		"updated_at": s.updatedAt.Format(time.RFC3339Nano),
-		"metadata":   s.metadata,
+		"_type":       "metadata",
+		"created_at":  s.createdAt.Format(time.RFC3339Nano),
+		"updated_at":  s.updatedAt.Format(time.RFC3339Nano),
+		"session_id":  s.sessionID,
+		"metadata":    s.metadata,
 	}
 	metaLine, err := json.Marshal(metadata)
 	if err != nil {
@@ -201,24 +227,13 @@ func (ss *Service) GetOrCreate(key string) *Session {
 	path := filepath.Join(ss.storage, key+".jsonl")
 	file, err := os.Open(path)
 	if err != nil {
-		s := &Session{
-			key:       key,
-			messages:  []provider.Message{},
-			createdAt: time.Now(),
-			updatedAt: time.Now(),
-		}
+		s := newSession(key)
 		ss.sessions[key] = s
 		return s
 	}
 	defer file.Close()
 
-	s := &Session{
-		key:       key,
-		messages:  []provider.Message{},
-		createdAt: time.Now(),
-		updatedAt: time.Now(),
-		metadata:  map[string]any{},
-	}
+	s := newSession(key)
 
 	scanner := bufio.NewScanner(file)
 	first := true
@@ -230,6 +245,7 @@ func (ss *Service) GetOrCreate(key string) *Session {
 		if first {
 			first = false
 			var meta struct {
+				SessionID string         `json:"session_id"`
 				CreatedAt string         `json:"created_at"`
 				UpdatedAt string         `json:"updated_at"`
 				Metadata  map[string]any `json:"metadata"`
@@ -241,7 +257,14 @@ func (ss *Service) GetOrCreate(key string) *Session {
 				if t, err := time.Parse(time.RFC3339Nano, meta.UpdatedAt); err == nil {
 					s.updatedAt = t
 				}
+				if meta.SessionID != "" {
+					s.sessionID = meta.SessionID
+				}
 				s.metadata = meta.Metadata
+				if s.sessionID == "" {
+					s.sessionID = uuid.New().String()
+					s.metadata["session_id"] = s.sessionID
+				}
 			}
 			continue
 		}

@@ -62,7 +62,7 @@ type WriteFileTool struct {
 }
 
 // NewFileWriteTool creates a new FileWriteTool.
-func New() *WriteFileTool {
+func NewWriteFileTool() *WriteFileTool {
 	schema := json.RawMessage(`{
 		"type": "object",
 		"properties": {
