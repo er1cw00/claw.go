@@ -87,28 +87,3 @@ func (r *Registry) GetSpecs() []*provider.ToolFunction {
 	}
 	return specs
 }
-
-// func (s *Registry) Start() error {
-
-// 	logger.Info("[Tools] Registry Start")
-// 	list := []Tool{
-// 		NewBashTool(),
-// 		NewCronTool(),
-// 	}
-
-// 	toolSpecs := make([]*provider.ToolFunction, len(list))
-// 	toolMap := make(map[string]Tool, 0)
-
-// 	for i, tool := range list {
-// 		spec := tool.Spec()
-// 		toolSpecs[i] = &provider.ToolFunction{
-// 			Name:        spec.Name,
-// 			Description: spec.Description,
-// 			Parameters:  spec.Parameters,
-// 		}
-// 		toolMap[tool.Name()] = tool
-// 	}
-// 	s.specs = toolSpecs
-// 	s.tools = toolMap
-// 	return nil
-// }

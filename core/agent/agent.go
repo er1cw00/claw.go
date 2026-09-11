@@ -12,6 +12,7 @@ import (
 	"github.com/er1cw00/claw.go/base"
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/cmd"
+	"github.com/er1cw00/claw.go/core/memory"
 	"github.com/er1cw00/claw.go/core/provider"
 	tl "github.com/er1cw00/claw.go/core/tools"
 	"github.com/er1cw00/claw.go/model"
@@ -54,15 +55,16 @@ func (agent *Agent) Start() error {
 		return err
 	}
 
-	if tools, err = agent.RegisterTools(); err != nil {
+	agent.commands = agent.RegisterCommands()
+	agent.contextBuilder = NewContextBuilder(base.GetSettings().Workspace)
+	memoryStore := agent.contextBuilder.memory
+	if tools, err = agent.RegisterTools(memoryStore); err != nil {
 		logger.Errorf("[Agent] register tools fail, err: %v", err)
 		return err
 	}
 
 	agent.llm = llm
 	agent.tools = tools
-	agent.commands = agent.RegisterCommands()
-	agent.contextBuilder = NewContextBuilder(base.GetSettings().Workspace)
 
 	return nil
 }
@@ -79,7 +81,7 @@ func (agent *Agent) RegisterCommands() *cmd.Registry {
 	logger.Infof("[Agent] register commands.")
 	return reg
 }
-func (agent *Agent) RegisterTools() (*tl.Registry, error) {
+func (agent *Agent) RegisterTools(memoryStore *memory.MemoryStore) (*tl.Registry, error) {
 	var err error = nil
 
 	list := []tl.Tool{
@@ -90,6 +92,11 @@ func (agent *Agent) RegisterTools() (*tl.Registry, error) {
 		tl.NewReadFileTool(),
 		tl.NewWriteFileTool(),
 		tl.NewEditFileTool(),
+		tl.NewListMemoryTool(memoryStore),
+		tl.NewReadMemoryTool(memoryStore),
+		tl.NewWriteMemoryTool(memoryStore),
+		tl.NewEditMemoryTool(memoryStore),
+		tl.NewDeleteMemoryTool(memoryStore),
 		// TODO; register tools here
 	}
 	reg := tl.NewRegistry()
@@ -161,10 +168,21 @@ func (agent *Agent) processInboundMessage(ctx context.Context, inboundMessage mo
 		}
 		msgBus.PublishOutbound(outboundMessage)
 		return nil
+	} else {
+		// send "typing"
+		outboundMessage := model.OutboundMessage{
+			Type:    model.MessageTyping,
+			Channel: inboundMessage.Channel,
+			ChatID:  inboundMessage.ChatID,
+			Content: "",
+		}
+		msgBus.PublishOutbound(outboundMessage)
 	}
 
 	messages := agent.contextBuilder.BuildMessages(
 		session.GetHistory(40),
+		inboundMessage.Channel,
+		inboundMessage.ChatID,
 		inboundMessage.Content,
 		nil,
 	)
@@ -300,7 +318,7 @@ func (agent *Agent) consolidateMemory(ctx context.Context, session *ss.Session) 
 	}
 	conversation := strings.Join(lines, "\n")
 	memoryStore := agent.contextBuilder.memory
-	currentMemory := memoryStore.ReadLongTerm()
+	currentMemory, _ := memoryStore.ReadLongTerm()
 
 	prompt := fmt.Sprintf(`You are a memory consolidation agent. Process this conversation and return a JSON object with exactly two keys:
 

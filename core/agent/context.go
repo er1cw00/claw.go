@@ -10,6 +10,7 @@ import (
 	//	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/memory"
+	"github.com/er1cw00/claw.go/core/prompts"
 	"github.com/er1cw00/claw.go/core/provider"
 )
 
@@ -33,16 +34,20 @@ func NewContextBuilder(workspace string) *ContextBuilder {
 }
 
 // BuildSystemPrompt builds the system prompt from bootstrap files, memory, and skills.
-func (b *ContextBuilder) BuildSystemPrompt(skillNames []string) string {
+func (b *ContextBuilder) BuildSystemPrompt(channel, chatId string, skillNames []string) string {
 	var parts []string
 
-	parts = append(parts, b.getIdentity())
+	//parts = append(parts, b.getIdentity(channel, chatID))
+	workspacePath, _ := filepath.Abs(b.workspace)
+	parts = append(parts, prompts.IdentifyPrompt(channel, chatId, workspacePath))
 	//logger.Debugf("identify: %s", parts[0])
 
 	bootstrap := b.loadBootstrapFiles()
 	if bootstrap != "" {
 		parts = append(parts, bootstrap)
 	}
+
+	parts = append(parts, "If you decide something should be remembered, call the tool 'write_memory' with JSON arguments: {\"target\": \"today\"|\"long\", \"content\": \"...\", \"append\": true|false}. Use a tool call rather than plain chat text when writing memory.")
 
 	memory := b.memory.GetMemoryContext()
 	if memory != "" {
@@ -71,7 +76,7 @@ Skills with available="false" need dependencies installed first - you can try in
 }
 
 // getIdentity returns the core identity section including current time and workspace info.
-func (b *ContextBuilder) getIdentity() string {
+func (b *ContextBuilder) getIdentity(channel, chatId string) string {
 	//now := time.Now().Format("2006-01-02 15:04 (Monday)")
 	now := time.Now().Format(time.RFC1123)
 
@@ -79,7 +84,7 @@ func (b *ContextBuilder) getIdentity() string {
 
 	return fmt.Sprintf(`# claw.go 🦧
 
-You are clawbot, a helpful AI assistant. You have access to tools that allow you to:
+You are clawbot, a helpful AI assistant. You are operating on channel=%q chatID=%q. You have access to tools that allow you to:
 - Read, write, and edit files
 - Execute shell commands
 - Search the web and fetch web pages
@@ -100,7 +105,7 @@ For normal conversation, just respond with text - do not call the message tool.
 
 Always be helpful, accurate, and concise. When using tools, explain what you're doing.
 When remembering something, write to %s/memory/MEMORY.md
-To recall past events, grep %s/memory/HISTORY.md`, now, workspacePath, workspacePath, workspacePath, workspacePath, workspacePath, workspacePath)
+To recall past events, grep %s/memory/HISTORY.md`, now, channel, chatId, workspacePath, workspacePath, workspacePath, workspacePath, workspacePath, workspacePath)
 }
 
 // loadBootstrapFiles loads all bootstrap files from the workspace.
@@ -118,13 +123,14 @@ func (b *ContextBuilder) loadBootstrapFiles() string {
 }
 
 // BuildMessages builds the complete message list for an LLM call.
-func (b *ContextBuilder) BuildMessages(history []provider.Message, currentMessage string, skillNames []string) []provider.Message {
+func (b *ContextBuilder) BuildMessages(history []provider.Message, channel, chatId, currentMessage string, skillNames []string) []provider.Message {
 	messages := make([]provider.Message, 0, len(history)+2)
-	systemPrompt := b.BuildSystemPrompt(skillNames)
+	systemPrompt := b.BuildSystemPrompt(channel, chatId, skillNames)
 	messages = append(messages, provider.Message{
 		Role:    provider.RoleSystem,
 		Content: systemPrompt, //b.BuildSystemPrompt(skillNames),
 	})
+	logger.Debugf("system prompt: %s", systemPrompt)
 	messages = append(messages, history...)
 	messages = append(messages, provider.Message{
 		Role:    provider.RoleUser,

@@ -12,7 +12,7 @@ import (
 /*
 	curl -X POST http://127.0.0.1:8080/admin/message \
 		-H "Content-Type: application/json" \
-	    -d '{"channel": "Telegram", "chat_id": "6412449819", "content": "hello from api"}'
+	    -d '{"channel": "telegram", "chat_id": "6412449819", "content": "hello from api"}'
 */
 type MessageController struct {
 	bus *bus.Service

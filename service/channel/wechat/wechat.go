@@ -85,7 +85,28 @@ func (cc *WeChatChannel) Stop() {
 func (cc *WeChatChannel) Name() string {
 	return ch.ChannelWeChat
 }
-func (cc *WeChatChannel) SendMessage(msg *model.OutboundMessage) error {
+func (cc *WeChatChannel) ProcessOutbountMessage(msg *model.OutboundMessage) {
+	if msg.Type == model.MessageTyping {
+		cc.typing(msg)
+	} else {
+		cc.sendMessage(msg)
+	}
+}
+func (cc *WeChatChannel) typing(msg *model.OutboundMessage) error {
+	config, err := cc.bot.GetConfig(cc.context, cc.bot.GetUserID())
+	if err != nil {
+		logger.Errorf("[WeChat] get config fail, err: %v", err)
+		return err
+	}
+	if config.TypingTicket == "" {
+		logger.Errorf("[WeChat] No typing ticket available")
+		return nil
+	}
+	status := wechat.TypingStatusTyping
+	//	status := wechat.TypingStatusCancel
+	return cc.bot.SendTyping(cc.context, cc.bot.GetUserID(), config.TypingTicket, status)
+}
+func (cc *WeChatChannel) sendMessage(msg *model.OutboundMessage) error {
 	var (
 		err error = nil
 	)

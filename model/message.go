@@ -43,7 +43,15 @@ func (m InboundMessage) Sender() *Participant {
 // Metadata can carry routing (message_id, ...), trace flags (_progress),
 // and optional OUTBOUND_META_AGENT_UI blobs for rich clients; non-WebUI
 // channels may ignore unknown keys.
+type MessageType int
+
+const (
+	MessageTyping = 1
+	MessageText   = 2
+)
+
 type OutboundMessage struct {
+	Type     MessageType
 	Channel  string
 	ChatID   string
 	Content  string

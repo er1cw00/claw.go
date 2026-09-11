@@ -83,22 +83,48 @@ func (cc *TelegramChannel) Stop() {
 func (cc *TelegramChannel) Name() string {
 	return ch.ChannelTelegram
 }
-func (cc TelegramChannel) SendMessage(msg *model.OutboundMessage) error {
-	var (
-		err error = nil
-	)
-	id, err := strconv.ParseInt(msg.ChatID, 10, 0)
+func (cc *TelegramChannel) ProcessOutbountMessage(msg *model.OutboundMessage) {
+	if msg.Type == model.MessageTyping {
+		cc.typing(msg)
+	} else {
+		cc.sendMessage(msg)
+	}
+}
+
+func (cc *TelegramChannel) typing(msg *model.OutboundMessage) error {
+	to, err := cc.getTeleUserFromId(msg.ChatID)
 	if err != nil {
 		return err
 	}
-	to := &tele.User{ID: id}
+	err = cc.bot.Notify(to, tele.Typing)
+	if err != nil {
+		logger.Errorf("[Telegram] Send Typing to user fail, err: %v", err)
+	}
+	return nil
+}
+func (cc TelegramChannel) sendMessage(msg *model.OutboundMessage) error {
+	var (
+		err error = nil
+	)
+	to, err := cc.getTeleUserFromId(msg.ChatID)
+	if err != nil {
+		return err
+	}
 	if msg.Content != "" {
 		_, err = cc.bot.Send(to, msg.Content)
 	}
 	if err != nil {
-		logger.Errorf("[WeChat] Send message to user fail, err: %v", err)
+		logger.Errorf("[Telegram] Send message to user fail, err: %v", err)
 	}
 	return nil
+}
+func (cc *TelegramChannel) getTeleUserFromId(ChatID string) (*tele.User, error) {
+	id, err := strconv.ParseInt(ChatID, 10, 0)
+	if err != nil {
+		return nil, err
+	}
+	to := &tele.User{ID: id}
+	return to, err
 }
 func (cc TelegramChannel) checkAllowSender(uid int64) bool {
 	r, ok := cc.allow[uid]

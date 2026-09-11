@@ -9,15 +9,15 @@ import (
 )
 
 const (
-	ChannelTelegram = "Telegram"
-	ChannelWeChat   = "WeChat"
+	ChannelTelegram = "telegram"
+	ChannelWeChat   = "wechat"
 )
 
 type Channel interface {
 	Start() error
 	Stop()
 	Name() string
-	SendMessage(message *model.OutboundMessage) error
+	ProcessOutbountMessage(msg *model.OutboundMessage)
 	PublishMessage(message *model.InboundMessage) error
 }
 

@@ -7,7 +7,6 @@ import (
 
 	"github.com/er1cw00/claw.go/base"
 	"github.com/er1cw00/claw.go/base/logger"
-
 	//"github.com/er1cw00/claw.go/model"
 	"github.com/er1cw00/claw.go/service/bus"
 	ch "github.com/er1cw00/claw.go/service/channel/base"
@@ -94,7 +93,7 @@ func (s *Service) dispatch(ctx context.Context, wg *sync.WaitGroup) {
 			if msg.Channel == "all" {
 				s.mu.RLock()
 				for _, channel := range s.channels {
-					channel.SendMessage(&msg)
+					channel.ProcessOutbountMessage(&msg)
 				}
 				s.mu.RUnlock()
 			} else {
@@ -102,7 +101,7 @@ func (s *Service) dispatch(ctx context.Context, wg *sync.WaitGroup) {
 				channel, found := s.channels[msg.Channel]
 				s.mu.RUnlock()
 				if found {
-					channel.SendMessage(&msg)
+					channel.ProcessOutbountMessage(&msg)
 				}
 			}
 		}
