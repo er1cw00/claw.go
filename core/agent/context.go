@@ -8,7 +8,6 @@ import (
 	"time"
 
 	//	"github.com/er1cw00/claw.go/base/logger"
-	"github.com/er1cw00/claw.go/base/logger"
 	"github.com/er1cw00/claw.go/core/memory"
 	"github.com/er1cw00/claw.go/core/prompts"
 	"github.com/er1cw00/claw.go/core/provider"
@@ -130,7 +129,7 @@ func (b *ContextBuilder) BuildMessages(history []provider.Message, channel, chat
 		Role:    provider.RoleSystem,
 		Content: systemPrompt, //b.BuildSystemPrompt(skillNames),
 	})
-	logger.Debugf("system prompt: %s", systemPrompt)
+	//logger.Debugf("system prompt: %s", systemPrompt)
 	messages = append(messages, history...)
 	messages = append(messages, provider.Message{
 		Role:    provider.RoleUser,

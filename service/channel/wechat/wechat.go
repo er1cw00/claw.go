@@ -86,6 +86,7 @@ func (cc *WeChatChannel) Name() string {
 	return ch.ChannelWeChat
 }
 func (cc *WeChatChannel) ProcessOutbountMessage(msg *model.OutboundMessage) {
+	logger.Debugf("[WeChat] message to user(%s)", msg.ChatID)
 	if msg.Type == model.MessageTyping {
 		cc.typing(msg)
 	} else {

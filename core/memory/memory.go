@@ -44,6 +44,9 @@ func todayDate() string {
 func (ms *MemoryStore) ReadLongTerm() (string, error) {
 	content, err := os.ReadFile(ms.memoryFile)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
 		return "", err
 	}
 	return string(content), nil
@@ -67,6 +70,9 @@ func (ms *MemoryStore) ReadDaily(date string) string {
 	path := filepath.Join(ms.memoryDir, date+".md")
 	content, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ""
+		}
 		return ""
 	}
 	return string(content)
