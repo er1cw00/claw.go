@@ -130,7 +130,7 @@ func (b *ContextBuilder) BuildMessages(history []provider.Message, channel, chat
 		Role:    provider.RoleSystem,
 		Content: systemPrompt, //b.BuildSystemPrompt(skillNames),
 	})
-	logger.Debugf("system prompt: %s", systemPrompt)
+	//logger.Debugf("system prompt: %s", systemPrompt)
 	messages = append(messages, history...)
 	messages = append(messages, provider.Message{
 		Role:    provider.RoleUser,

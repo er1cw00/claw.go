@@ -102,6 +102,8 @@ func (s *Service) dispatch(ctx context.Context, wg *sync.WaitGroup) {
 				s.mu.RUnlock()
 				if found {
 					channel.ProcessOutbountMessage(&msg)
+				} else {
+					logger.Errorf("channel(%s) not found", msg.Channel)
 				}
 			}
 		}
